@@ -2,9 +2,19 @@ import torch
 import torch_geometric
 from random import random
 import networkx as nx
+from math import inf
 
 degree = torch_geometric.utils.degree
 softmax = torch.nn.Softmax(dim=0)
+
+def argmin(d):
+	smallest = inf
+	for i in d:
+		if d[i] < smallest:
+			smallest = d[i]
+			key_of_smallest = i
+	return key_of_smallest
+
 def sample(weights, temperature=1):
 	# samples randomly from a list of weights
 	# probabilities of indices given by softmax(temperature * weights)
@@ -66,11 +76,32 @@ def balanced_forman(i, j, G):
 		ric = 2/di + 2/dj - 2 + 2 * num_triangles / max(di, dj) + num_triangles / min(di, dj) + (num_squares_i + num_squares_j)/(gamma_max * max(di, dj))
 	return ric
 
-def SDRF(x, edge_index, max_iterations=100, temperature=1):
+def SDRF(G, max_iterations=100, temperature=1):
 	# stochastic discrete ricci flow
-	num_nodes = len(x)
-	G = torch_geometric.utils.to_networkx(num_nodes)
-	# still have to work on this
+	# still need to test this
+	num_nodes = len(G.nodes)
+	num_edges = len(G.edges)
+	curvatures = {}
+	for edge in G.edges:
+		(u, v) = edge
+		curvatures[(u,v)] = balanced_forman(u, v, G)
+	for iteration in range(max_iterations):
+		(u, v) = argmin(curvatures)
+		ric_uv = curvatures[(u, v)]
+		improvements = {}
+		for k in G.neighbors(u):
+			for l in G.neighbors(v)
+			G_new = G.copy()
+			G_new.add_edge(k, l)
+			improvements[(k,l)] = balanced_forman(u, v, G_new) - ric_uv
+		improvements_list = [[k, l, improvements[(k,l)]] for (k, l) in improvements]
+		improvement_values = torch.tensor([x[2] for x in improvements_list])
+		chosen_index = sample(improvement_values,temperature=temperature)
+		i = improvements_list[chosen_index][0]
+		j = improvements_list[chosen_index][1]
+		G.add_edge(i, j)
+	return G
+
 def rlef(edge_index, edge_weights=None, num_iterations=100):
 	# algorithm 1 from Overleaf (Random Local Edge Flip)
 	if edge_weights == None:
