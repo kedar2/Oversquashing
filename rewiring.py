@@ -1,6 +1,6 @@
 import torch
 import torch_geometric
-from random import random
+from numpy.random import random
 import networkx as nx
 from math import inf
 
@@ -15,11 +15,14 @@ def argmin(d):
 			key_of_smallest = i
 	return key_of_smallest
 
-def sample(weights, temperature=1):
+def sample(weights, temperature=1, use_softmax=True):
 	# samples randomly from a list of weights
-	# probabilities of indices given by softmax(temperature * weights)
+	weights = torch.tensor(weights)
 	seed = random()
-	probabilities = softmax(temperature * weights)
+	if use_softmax:
+		probabilities = softmax(temperature * weights)
+	else:
+		probabilities = weights / sum(weights)
 	N = len(weights)
 	for i in range(N):
 		seed -= probabilities[i]
@@ -27,32 +30,39 @@ def sample(weights, temperature=1):
 			return i
 	return N - 1
 
+def second_neighborhood(i, G):
+	# returns all vertices of distance at most 2 from a given vertex i in G
+	second_neighbors = set()
+	for j in G.neighbors(i):
+		second_neighbors.add(j)
+		for k in G.neighbors(j):
+			second_neighbors = second_neighbors.union(neighbors_of_j)
+	second_neighbors.add(i)
+	return second_neighbors
+
 def balanced_forman(i, j, G):
 	# Calculates Ric(i, j) for a graph G of type networkx.DiGraph
 	di = G.degree(i)
 	dj = G.degree(j)
 	if di <= 1 or dj <= 1:
 		return 0
-	neighbors_of_i = list(G.neighbors(i))
-	neighbors_of_j = list(G.neighbors(j))
+	neighbors_of_i = set(G.neighbors(i))
+	neighbors_of_j = set(G.neighbors(j))
 	num_triangles = 0
-	for v in neighbors_of_i:
-		if v in neighbors_of_j:
-			num_triangles += 1
-	potential_squares = []
-	neighbors_of_i_only = [v for v in neighbors_of_i if not v in neighbors_of_j and not v == j]
-	neighbors_of_j_only = [v for v in neighbors_of_j if not v in neighbors_of_i and not v == i]
+	triangles = neighbors_of_i.intersection(neighbors_of_j)
+	num_triangles = len(triangles)
+	potential_squares = set()
+	neighbors_of_i_only = neighbors_of_i.difference(neighbors_of_j)
+	neighbors_of_j_only = neighbors_of_i.difference(neighbors_of_j)
 	for v in neighbors_of_i_only:
 		for w in G.neighbors(v):
 			if w in neighbors_of_j_only:
-				potential_squares.append((v, w))
-	squares_at_i = []
-	squares_at_j = []
+				potential_squares.add((v, w))
+	squares_at_i = {v for (v, w) in potential_squares}
+	squares_at_j = {w for (v, w) in potential_squares}
 	for (v, w) in potential_squares:
-		if not v in squares_at_i:
-			squares_at_i.append(v)
-		if not w in squares_at_j:
-			squares_at_j.append(w)
+		squares_at_i.add(v)
+		squares_at_j.add(w)
 	num_squares_i = len(squares_at_i)
 	num_squares_j = len(squares_at_j)
 	gamma_max = 0
@@ -70,15 +80,17 @@ def balanced_forman(i, j, G):
 				potential_gamma += 1
 		potential_gamma -= 1
 		gamma_max = max(gamma_max, potential_gamma)
+	triangle_term = 2 * num_triangles / max(di, dj) + num_triangles / min(di, dj)
 	if gamma_max == 0:
-		ric = 2/di + 2/dj - 2 + 2 * num_triangles / max(di, dj) + num_triangles / min(di, dj)
+		square_term = 0
 	else:
-		ric = 2/di + 2/dj - 2 + 2 * num_triangles / max(di, dj) + num_triangles / min(di, dj) + (num_squares_i + num_squares_j)/(gamma_max * max(di, dj))
+		square_term = (num_squares_i + num_squares_j)/(gamma_max * max(di, dj))
+	ric = 2/di + 2/dj - 2 + triangle_term + square_term
+	print(ric, triangle_term, square_term)
 	return ric
 
 def SDRF(G, max_iterations=100, temperature=1):
 	# stochastic discrete ricci flow
-	# still need to test this
 	num_nodes = len(G.nodes)
 	num_edges = len(G.edges)
 	curvatures = {}
@@ -90,10 +102,10 @@ def SDRF(G, max_iterations=100, temperature=1):
 		ric_uv = curvatures[(u, v)]
 		improvements = {}
 		for k in G.neighbors(u):
-			for l in G.neighbors(v)
-			G_new = G.copy()
-			G_new.add_edge(k, l)
-			improvements[(k,l)] = balanced_forman(u, v, G_new) - ric_uv
+			for l in G.neighbors(v):
+				G_new = G.copy()
+				G_new.add_edge(k, l)
+				improvements[(k,l)] = balanced_forman(u, v, G_new) - ric_uv
 		improvements_list = [[k, l, improvements[(k,l)]] for (k, l) in improvements]
 		improvement_values = torch.tensor([x[2] for x in improvements_list])
 		chosen_index = sample(improvement_values,temperature=temperature)
@@ -135,5 +147,5 @@ def rlef(edge_index, edge_weights=None, num_iterations=100):
 	return edge_index
 
 
-edge_index = torch.tensor([[0, 0, 1, 1, 2, 3], [1, 2, 0, 3, 0, 1]])
-rlef(edge_index)
+#edge_index = torch.tensor([[0, 0, 1, 1, 2, 3], [1, 2, 0, 3, 0, 1]])
+#rlef(edge_index)
