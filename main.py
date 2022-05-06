@@ -1,53 +1,76 @@
-import torch
-import numpy as np
-import networkx as nx
-from torch import nn
-from torch.nn import Sequential, ReLU, Linear
-from torch_geometric.data import Data
-from torch_geometric.transforms import LargestConnectedComponents
-from torch_geometric.datasets import WebKB, WikipediaNetwork, Actor, Planetoid
-from torch_geometric.utils import homophily, to_undirected, to_networkx
-from torch_geometric.nn import MessagePassing
-from torch_geometric.utils import add_self_loops, degree, to_undirected, remove_self_loops
-from torch.optim import Adam
-from sklearn.model_selection import train_test_split
-import rewiring
-device = torch.device('cuda')
+from argparse import ArgumentParser
+from attrdict import AttrDict
 
-def determine_training_data(total_size, train_ratio):
-	# generates a random vector of 0s and 1s with length total_size, with the fraction of 1s given by train_ratio
-	rand_vector = torch.rand(total_size)
-	k = int(train_ratio * total_size)
-	k_th_quant = torch.topk(rand_vector, k, largest=False)
+from experiment import Experiment
+from common import Task, GNN_TYPE, STOP
 
-cornell = WebKB(root="data", name="Cornell")[0]
-wisconsin = WebKB(root="data", name="Wisconsin")[0]
-texas = WebKB(root="data", name="Texas")[0]
-chameleon = WikipediaNetwork(root="data", name="chameleon")[0]
-squirrel = WikipediaNetwork(root="data", name="squirrel")[0]
-actor = Actor(root="data")[0]
-cora = Planetoid(root="data", name="cora")[0]
-citeseer = Planetoid(root="data", name="citeseer")[0]
-pubmed = Planetoid(root="data", name="pubmed")[0]
+if __name__ == '__main__':
+    parser = ArgumentParser()
+    parser.add_argument("--task", dest="task", default=Task.NEIGHBORS_MATCH, type=Task.from_string, choices=list(Task),
+                        required=False)
+    parser.add_argument("--type", dest="type", default=GNN_TYPE.GCN, type=GNN_TYPE.from_string, choices=list(GNN_TYPE),
+                        required=False)
+    parser.add_argument("--dim", dest="dim", default=32, type=int, required=False)
+    parser.add_argument("--depth", dest="depth", default=3, type=int, required=False)
+    parser.add_argument("--num_layers", dest="num_layers", default=None, type=int, required=False)
+    parser.add_argument("--train_fraction", dest="train_fraction", default=0.8, type=float, required=False)
+    parser.add_argument("--max_epochs", dest="max_epochs", default=50000, type=int, required=False)
+    parser.add_argument("--eval_every", dest="eval_every", default=100, type=int, required=False)
+    parser.add_argument("--batch_size", dest="batch_size", default=1024, type=int, required=False)
+    parser.add_argument("--accum_grad", dest="accum_grad", default=1, type=int, required=False)
+    parser.add_argument("--stop", dest="stop", default=STOP.TRAIN, type=STOP.from_string, choices=list(STOP),
+                        required=False)
+    parser.add_argument("--patience", dest="patience", default=20, type=int, required=False)
+    parser.add_argument("--loader_workers", dest="loader_workers", default=0, type=int, required=False)
+    parser.add_argument('--last_layer_fully_adjacent', action='store_true')
+    parser.add_argument('--no_layer_norm', action='store_true')
+    parser.add_argument('--no_activation', action='store_true')
+    parser.add_argument('--no_residual', action='store_true')
+    parser.add_argument('--unroll', action='store_true', help='use the same weights across GNN layers')
 
-largest_cc = LargestConnectedComponents()
+    args = parser.parse_args()
+    Experiment(args).run()
 
-graphs = [cornell, texas, wisconsin, chameleon, squirrel, actor, cora, citeseer, pubmed]
-graph_names = ["Cornell", "Texas", "Wisconsin", "Chameleon", "Squirrel", "Actor", "Cora", "Citeseer", "Pubmed"]
 
-for graph in graphs:
-	graph.edge_index = to_undirected(graph.edge_index)
-	graph = largest_cc(graph)
-
-graph_to_use = wisconsin
-G = to_networkx(cora, to_undirected=True)
-#x = rewiring.compute_curvature(G)
-#for i in range(10000000):
-#	G = rewiring.rlef(G)
-#	if i % 10000 == 0:
-#		curvatures = rewiring.compute_curvature(G)
-#		total_curvature = 0
-#		for j in curvatures:
-#			total_curvature += curvatures[j]
-#		print("TOTAL CURVATURE: ", total_curvature)
-#		print("SPECTRAL GAP: ", rewiring.spectral_gap(G))
+def get_fake_args(
+        task=Task.DEFAULT,
+        type=GNN_TYPE.GCN,
+        dim=32,
+        num_layers=None,
+        train_fraction=0.6,
+        validation_fraction=0.2,
+        max_epochs=50000,
+        eval_every=100,
+        batch_size=1024,
+        accum_grad=1,
+        patience=20,
+        stop=STOP.TRAIN,
+        loader_workers=0,
+        last_layer_fully_adjacent=False,
+        no_layer_norm=False,
+        no_activation=False,
+        no_residual=False,
+        unroll=False,
+        dataset='dataset'
+):
+    return AttrDict({
+        'task': task,
+        'type': type,
+        'dim': dim,
+        'num_layers': num_layers,
+        'train_fraction': train_fraction,
+        'validation_fraction': validation_fraction,
+        'max_epochs': max_epochs,
+        'eval_every': eval_every,
+        'batch_size': batch_size,
+        'accum_grad': accum_grad,
+        'stop': stop,
+        'patience': patience,
+        'loader_workers': loader_workers,
+        'last_layer_fully_adjacent': last_layer_fully_adjacent,
+        'no_layer_norm': no_layer_norm,
+        'no_activation': no_activation,
+        'no_residual': no_residual,
+        'unroll': unroll,
+        'dataset': dataset
+    })

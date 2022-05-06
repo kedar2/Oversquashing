@@ -1,0 +1,147 @@
+import torch
+from torch_geometric.data import DataLoader
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+
+import numpy as np
+import random
+from attrdict import AttrDict
+
+from common import STOP
+from models.graph_model import GraphModel
+
+
+class Experiment():
+    def __init__(self, args):
+        self.task = args.task
+        gnn_type = args.type
+        num_layers = 3 if args.num_layers is None else args.num_layers
+        self.dim = args.dim
+        self.unroll = args.unroll
+        self.train_fraction = args.train_fraction
+        self.validation_fraction = args.validation_fraction
+        self.max_epochs = args.max_epochs
+        self.batch_size = args.batch_size
+        self.accum_grad = args.accum_grad
+        self.eval_every = args.eval_every
+        self.loader_workers = args.loader_workers
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.stopping_criterion = args.stop
+        self.patience = args.patience
+        self.dataset = args.dataset
+
+        seed = 11
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        random.seed(seed)
+
+        self.data = self.dataset.graph
+        dim0 = self.data.x.size()[1]
+        out_dim = self.dataset.out_dim
+        self.criterion = self.dataset.criterion
+
+        self.train_samples, self.validation_samples, self.test_samples = self.dataset.decide_training_set(self.train_fraction, self.validation_fraction)
+
+        self.model = GraphModel(gnn_type=gnn_type, num_layers=num_layers, dim0=dim0, h_dim=self.dim, out_dim=out_dim,
+                                last_layer_fully_adjacent=args.last_layer_fully_adjacent, unroll=args.unroll,
+                                layer_norm=not args.no_layer_norm,
+                                use_activation=not args.no_activation,
+                                use_residual=not args.no_residual
+                                ).to(self.device)
+
+        print(f'Starting experiment')
+        self.print_args(args)
+        print(f'Training examples: {len(self.train_samples)}, validation examples: {len(self.validation_samples)}')
+
+    def print_args(self, args):
+        if type(args) is AttrDict:
+            for key, value in args.items():
+                print(f"{key}: {value}")
+        else:
+            for arg in vars(args):
+                print(f"{arg}: {getattr(args, arg)}")
+        print()
+
+    def run(self):
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        scheduler = ReduceLROnPlateau(optimizer, mode='max', threshold_mode='abs', factor=0.5, patience=10)
+        print('Starting training')
+
+        best_test_acc = 0.0
+        best_train_acc = 0.0
+        best_epoch = 0
+        epochs_no_improve = 0
+        batch = self.data.to(self.device)
+        train_size = len(self.train_samples)
+        for epoch in range(1, (self.max_epochs // self.eval_every) + 1):
+            self.model.train()
+
+            total_loss = 0
+            total_num_examples = 0
+            train_correct = 0
+            optimizer.zero_grad()
+            out = self.model(batch)
+            loss = self.criterion(input=out[self.train_samples], target=batch.y[self.train_samples])
+            total_num_examples += train_size
+            total_loss += (loss.item() * train_size)
+            _, train_pred = out.max(dim=1)
+            train_correct += train_pred[self.train_samples].eq(batch.y[self.train_samples]).sum().item()
+
+            loss = loss / self.accum_grad
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+
+            avg_training_loss = total_loss / total_num_examples
+            train_acc = train_correct / total_num_examples
+            scheduler.step(train_acc)
+
+            test_acc = self.eval()
+            cur_lr = [g["lr"] for g in optimizer.param_groups]
+
+            new_best_str = ''
+            stopping_threshold = 0.0001
+            stopping_value = 0
+            if self.stopping_criterion is STOP.TEST:
+                if test_acc > best_test_acc + stopping_threshold:
+                    best_test_acc = test_acc
+                    best_train_acc = train_acc
+                    best_epoch = epoch
+                    epochs_no_improve = 0
+                    stopping_value = test_acc
+                    new_best_str = ' (new best test)'
+                else:
+                    epochs_no_improve += 1
+            elif self.stopping_criterion is STOP.TRAIN:
+                if train_acc > best_train_acc + stopping_threshold:
+                    best_train_acc = train_acc
+                    best_test_acc = test_acc
+                    best_epoch = epoch
+                    epochs_no_improve = 0
+                    stopping_value = train_acc
+                    new_best_str = ' (new best train)'
+                else:
+                    epochs_no_improve += 1
+            print(
+                f'Epoch {epoch * self.eval_every}, LR: {cur_lr}: Train loss: {avg_training_loss:.7f}, Train acc: {train_acc:.4f}, Test accuracy: {test_acc:.4f}{new_best_str}')
+            if stopping_value == 1.0:
+                break
+            if epochs_no_improve >= self.patience:
+                print(
+                    f'{self.patience} * {self.eval_every} epochs without {self.stopping_criterion} improvement, stopping. ')
+                break
+        print(f'Best train acc: {best_train_acc}, epoch: {best_epoch * self.eval_every}')
+
+        return best_train_acc, best_test_acc, best_epoch
+
+    def eval(self):
+        self.model.eval()
+        with torch.no_grad():
+            validation_size = len(self.validation_samples)
+            total_correct = 0
+            total_examples = 0
+            batch = self.data.to(self.device)
+            _, pred = self.model(batch)[self.validation_samples].max(dim=1)
+            total_correct += pred.eq(batch.y[self.validation_samples]).sum().item()
+            total_examples += validation_size
+            acc = total_correct / validation_size
+            return acc

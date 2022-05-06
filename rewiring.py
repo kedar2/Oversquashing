@@ -56,8 +56,8 @@ def balanced_forman(i, j, G):
 	triangles = neighbors_of_i.intersection(neighbors_of_j)
 	num_triangles = len(triangles)
 	potential_squares = set()
-	neighbors_of_i_only = neighbors_of_i.difference(neighbors_of_j)
-	neighbors_of_j_only = neighbors_of_i.difference(neighbors_of_j)
+	neighbors_of_i_only = neighbors_of_i.difference(neighbors_of_j).difference({j})
+	neighbors_of_j_only = neighbors_of_j.difference(neighbors_of_i).difference({i})
 	for v in neighbors_of_i_only:
 		for w in G.neighbors(v):
 			if w in neighbors_of_j_only:
@@ -100,7 +100,7 @@ def compute_curvature(G):
 		curvatures[(u,v)] = balanced_forman(u, v, G)
 	return curvatures
 
-def sdrf(G, curvatures=None, max_iterations=100, temperature=1):
+def sdrf(G, curvatures=None, max_iterations=100, temperature=5):
 	# stochastic discrete ricci flow
 	num_nodes = len(G.nodes)
 	num_edges = len(G.edges)
@@ -108,6 +108,7 @@ def sdrf(G, curvatures=None, max_iterations=100, temperature=1):
 		curvatures = compute_curvature(G)
 	for iteration in range(max_iterations):
 		(u, v) = argmin(curvatures)
+		print(u, v, curvatures[(u,v)])
 		ric_uv = curvatures[(u, v)]
 		improvements = {}
 		for k in G.neighbors(u):
@@ -162,5 +163,3 @@ def rlef(G):
 			G.add_edge(i,v)
 			G.add_edge(j,u)
 		return G
-#edge_index = torch.tensor([[0, 0, 1, 1, 2, 3], [1, 2, 0, 3, 0, 1]])
-#rlef(edge_index)
