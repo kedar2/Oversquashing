@@ -1,5 +1,6 @@
 import torch
 import torch_geometric
+import numpy as np
 from numpy.random import random
 import networkx as nx
 from math import inf
@@ -14,6 +15,9 @@ def argmin(d):
 			smallest = d[i]
 			key_of_smallest = i
 	return key_of_smallest
+
+def spectral_gap(G):
+	return nx.laplacian_spectrum(G)[1]
 
 def sample(weights, temperature=1, use_softmax=True):
 	# samples randomly from a list of weights
@@ -86,17 +90,22 @@ def balanced_forman(i, j, G):
 	else:
 		square_term = (num_squares_i + num_squares_j)/(gamma_max * max(di, dj))
 	ric = 2/di + 2/dj - 2 + triangle_term + square_term
-	print(ric, triangle_term, square_term)
 	return ric
 
-def SDRF(G, max_iterations=100, temperature=1):
-	# stochastic discrete ricci flow
-	num_nodes = len(G.nodes)
-	num_edges = len(G.edges)
+def compute_curvature(G):
+	# computes Ric(i, j) for all edges (i, j)
 	curvatures = {}
 	for edge in G.edges:
 		(u, v) = edge
 		curvatures[(u,v)] = balanced_forman(u, v, G)
+	return curvatures
+
+def sdrf(G, curvatures=None, max_iterations=100, temperature=1):
+	# stochastic discrete ricci flow
+	num_nodes = len(G.nodes)
+	num_edges = len(G.edges)
+	if curvatures == None:
+		curvatures = compute_curvature(G)
 	for iteration in range(max_iterations):
 		(u, v) = argmin(curvatures)
 		ric_uv = curvatures[(u, v)]
@@ -104,48 +113,54 @@ def SDRF(G, max_iterations=100, temperature=1):
 		for k in G.neighbors(u):
 			for l in G.neighbors(v):
 				G_new = G.copy()
-				G_new.add_edge(k, l)
-				improvements[(k,l)] = balanced_forman(u, v, G_new) - ric_uv
+				a = min(k, l)
+				b = max(k, l)
+				G_new.add_edge(a, b)
+				improvements[(a,b)] = balanced_forman(u, v, G_new) - ric_uv
 		improvements_list = [[k, l, improvements[(k,l)]] for (k, l) in improvements]
-		improvement_values = torch.tensor([x[2] for x in improvements_list])
+		improvement_values = [x[2] for x in improvements_list]
 		chosen_index = sample(improvement_values,temperature=temperature)
 		i = improvements_list[chosen_index][0]
 		j = improvements_list[chosen_index][1]
 		G.add_edge(i, j)
-	return G
+		# need to update curvatures at neighbors of i and j
+		edges_to_update = set()
+		for w in G.neighbors(i):
+			a = min(w, i)
+			b = max(w, i)
+			edges_to_update.add((a,b))
+		for x in G.neighbors(j):
+			a = min(x, j)
+			b = max(x, j)
+			edges_to_update.add((a,b))
+		for w in G.neighbors(i):
+			for x in G.neighbors(j):
+				a = min(w, x)
+				b = max(w, x)
+				edges_to_update.add((a,b))
+		for edge in edges_to_update:
+			(w, x) = edge
+			curvatures[(w, x)] = balanced_forman(w, x, G)
+	return G, curvatures
 
-def rlef(edge_index, edge_weights=None, num_iterations=100):
+def rlef(G):
 	# algorithm 1 from Overleaf (Random Local Edge Flip)
-	if edge_weights == None:
-		edge_weights = torch.ones(len(edge_index))
-	for iteration in range(num_iterations):
-		print(edge_index)
-		input()
-		index = sample(edge_weights, temperature=1)
-		u = edge_index[0][index].item()
-		v = edge_index[1][index].item()
-		u_neighbors = edge_index[1,:][edge_index[0,:] == u]
-		v_neighbors = edge_index[1,:][edge_index[0,:] == v]
-		# update v to only include the neighbors that are eligible
-		v_neighbors = torch.tensor([i.item() for i in v_neighbors if i != u and not i in u_neighbors])
-		deg_u = len(u_neighbors)
-		deg_v = len(v_neighbors)
-		i = u_neighbors[sample(torch.ones(deg_u))]
-		if i in v_neighbors or i == v or len(v_neighbors) == 0:
-			pass
+	edge_list = list(G.edges)
+	chosen_edge = edge_list[np.random.randint(len(edge_list))]
+	(u, v) = chosen_edge
+	i = np.random.choice(list(G.neighbors(u)))
+	if  i in G.neighbors(v) or i == v:
+		return G
+	else:
+		eligible_nodes = set(G.neighbors(v)).difference(set(G.neighbors(u))).difference({u})
+		if eligible_nodes == set():
+			return G
 		else:
-			j = v_neighbors[sample(torch.ones(deg_v))]
-			for m in range(len(edge_index[0])):
-				if edge_index[0][m] == i and edge_index[1][m] == u:
-					edge_index[1][m] = v
-				elif edge_index[0][m] == u and edge_index[1][m] == i:
-					edge_index[0][m] = v
-				elif edge_index[0][m] == j and edge_index[1][m] == v:
-					edge_index[1][m] = u
-				elif edge_index[0][m] == v and edge_index[1][m] == j:
-					edge_index[0][m] = u
-	return edge_index
-
-
+			j = np.random.choice(list(eligible_nodes))
+			G.remove_edge(i,u)
+			G.remove_edge(j,v)
+			G.add_edge(i,v)
+			G.add_edge(j,u)
+		return G
 #edge_index = torch.tensor([[0, 0, 1, 1, 2, 3], [1, 2, 0, 3, 0, 1]])
 #rlef(edge_index)
