@@ -29,13 +29,14 @@ class Experiment():
         self.patience = args.patience
         self.dataset = args.dataset
 
-        seed = 11
-        torch.manual_seed(seed)
-        np.random.seed(seed)
-        random.seed(seed)
+        #seed = 11
+        #torch.manual_seed(seed)
+        #np.random.seed(seed)
+        #random.seed(seed)
 
         self.data = self.dataset.graph
         dim0 = self.data.x.size()[1]
+        num_nodes = self.data.x.size()[0]
         out_dim = self.dataset.out_dim
         self.criterion = self.dataset.criterion
 
@@ -45,12 +46,12 @@ class Experiment():
                                 last_layer_fully_adjacent=args.last_layer_fully_adjacent, unroll=args.unroll,
                                 layer_norm=not args.no_layer_norm,
                                 use_activation=not args.no_activation,
-                                use_residual=not args.no_residual
+                                use_residual=not args.no_residual, num_nodes=num_nodes
                                 ).to(self.device)
 
-        print(f'Starting experiment')
-        self.print_args(args)
-        print(f'Training examples: {len(self.train_samples)}, validation examples: {len(self.validation_samples)}')
+        #print(f'Starting experiment')
+        #self.print_args(args)
+        #print(f'Training examples: {len(self.train_samples)}, validation examples: {len(self.validation_samples)}')
 
     def print_args(self, args):
         if type(args) is AttrDict:
@@ -62,11 +63,11 @@ class Experiment():
         print()
 
     def run(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001, weight_decay=0.02)
         scheduler = ReduceLROnPlateau(optimizer, mode='max', threshold_mode='abs', factor=0.5, patience=10)
-        print('Starting training')
+        #print('Starting training')
 
-        best_test_acc = 0.0
+        best_validation_acc = 0.0
         best_train_acc = 0.0
         best_epoch = 0
         epochs_no_improve = 0
@@ -95,25 +96,28 @@ class Experiment():
             train_acc = train_correct / total_num_examples
             scheduler.step(train_acc)
 
-            test_acc = self.eval()
+            validation_acc = self.eval(sample="validation")
+            test_acc = self.eval(sample="test")
             cur_lr = [g["lr"] for g in optimizer.param_groups]
 
             new_best_str = ''
             stopping_threshold = 0.0001
             stopping_value = 0
-            if self.stopping_criterion is STOP.TEST:
-                if test_acc > best_test_acc + stopping_threshold:
-                    best_test_acc = test_acc
+            if self.stopping_criterion is STOP.VALIDATION:
+                if validation_acc > best_validation_acc + stopping_threshold:
+                    best_validation_acc = validation_acc
                     best_train_acc = train_acc
+                    best_test_acc = test_acc
                     best_epoch = epoch
                     epochs_no_improve = 0
-                    stopping_value = test_acc
+                    stopping_value = validation_acc
                     new_best_str = ' (new best test)'
                 else:
                     epochs_no_improve += 1
             elif self.stopping_criterion is STOP.TRAIN:
                 if train_acc > best_train_acc + stopping_threshold:
                     best_train_acc = train_acc
+                    best_validation_acc = validation_acc
                     best_test_acc = test_acc
                     best_epoch = epoch
                     epochs_no_improve = 0
@@ -121,27 +125,33 @@ class Experiment():
                     new_best_str = ' (new best train)'
                 else:
                     epochs_no_improve += 1
-            print(
-                f'Epoch {epoch * self.eval_every}, LR: {cur_lr}: Train loss: {avg_training_loss:.7f}, Train acc: {train_acc:.4f}, Test accuracy: {test_acc:.4f}{new_best_str}')
+            #print(
+            #    f'Epoch {epoch * self.eval_every}, LR: {cur_lr}: Train loss: {avg_training_loss:.7f}, Train acc: {train_acc:.4f}, Validation accuracy: {validation_acc:.4f}{new_best_str}')
             if stopping_value == 1.0:
                 break
             if epochs_no_improve >= self.patience:
-                print(
-                    f'{self.patience} * {self.eval_every} epochs without {self.stopping_criterion} improvement, stopping. ')
+                #print(
+                #    f'{self.patience} * {self.eval_every} epochs without {self.stopping_criterion} improvement, stopping. ')
                 break
-        print(f'Best train acc: {best_train_acc}, epoch: {best_epoch * self.eval_every}')
+        #print(f'Best train acc: {best_train_acc}, test acc: {best_test_acc}')
 
-        return best_train_acc, best_test_acc, best_epoch
+        return best_train_acc, best_validation_acc, best_test_acc, best_epoch
 
-    def eval(self):
+    def eval(self, sample="validation"):
         self.model.eval()
         with torch.no_grad():
-            validation_size = len(self.validation_samples)
+            if sample == "validation":
+                samples = self.validation_samples
+            elif sample == "test":
+                samples = self.test_samples
+            else:
+                return 0
+            sample_size = len(samples)
             total_correct = 0
             total_examples = 0
             batch = self.data.to(self.device)
-            _, pred = self.model(batch)[self.validation_samples].max(dim=1)
-            total_correct += pred.eq(batch.y[self.validation_samples]).sum().item()
-            total_examples += validation_size
-            acc = total_correct / validation_size
+            _, pred = self.model(batch)[samples].max(dim=1)
+            total_correct += pred.eq(batch.y[samples]).sum().item()
+            total_examples += sample_size
+            acc = total_correct / sample_size
             return acc

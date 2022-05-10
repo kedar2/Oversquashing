@@ -3,6 +3,7 @@ from common import Task, STOP, GNN_TYPE
 from attrdict import AttrDict
 from experiment import Experiment
 import torch
+import numpy as np
 
 override_params = {
     2: {'batch_size': 64, 'eval_every': 1000},
@@ -27,15 +28,25 @@ if __name__ == '__main__':
     task = Task.DEFAULT
     gnn_type = GNN_TYPE.GCN
     name = "wisconsin"
-    stopping_criterion = STOP.TRAIN
+    stopping_criterion = STOP.VALIDATION
     num_layers=3
+    num_trials=20
+    accuracies = []
 
-    dataset = task.get_dataset()
-    dataset.generate_data(name)
-
-    args = main.get_fake_args(task=task, num_layers=num_layers, loader_workers=7,
-                                  type=gnn_type, stop=stopping_criterion, dataset=dataset)
     
 
-    train_acc, test_acc, epoch = Experiment(args).run()
-    torch.cuda.empty_cache()
+    
+
+    
+
+    for trial in range(num_trials):
+        dataset = task.get_dataset()
+        dataset.generate_data(name)
+        args = main.get_fake_args(task=task, num_layers=num_layers, loader_workers=7,
+                                  type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=True)
+        train_acc, validation_acc, test_acc, epoch = Experiment(args).run()
+        accuracies.append(test_acc)
+        torch.cuda.empty_cache()
+    print("average acc: ", np.average(accuracies))
+    print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
+    

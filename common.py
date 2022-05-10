@@ -58,6 +58,7 @@ class GNN_TYPE(Enum):
 class STOP(Enum):
     TRAIN = auto()
     TEST = auto()
+    VALIDATION = auto()
 
     @staticmethod
     def from_string(s):

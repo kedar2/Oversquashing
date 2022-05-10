@@ -6,6 +6,7 @@ import torch
 from torch_geometric.utils import to_networkx, from_networkx
 import rewiring
 import networkx as nx
+import numpy as np
 
 override_params = {
     2: {'batch_size': 64, 'eval_every': 1000},
@@ -30,21 +31,25 @@ if __name__ == '__main__':
     task = Task.DEFAULT
     gnn_type = GNN_TYPE.GCN
     name = "wisconsin"
-    stopping_criterion = STOP.TRAIN
+    stopping_criterion = STOP.VALIDATION
     num_layers=3
-    num_flips=1000
+    num_trials=20
+    num_flips=500
+    accuracies = []    
 
-    dataset = task.get_dataset()
-    dataset.generate_data(name)
-    G = to_networkx(dataset.graph, to_undirected=True)
-    print("Starting spectral gap: ", rewiring.spectral_gap(G))
-    for flip in range(num_flips):
-        rewiring.rlef(G)
-    print("Ending spectral gap: ", rewiring.spectral_gap(G))
-    dataset.graph.edge_index = from_networkx(G).edge_index
-    args = main.get_fake_args(task=task, num_layers=num_layers, loader_workers=7,
-                                  type=gnn_type, stop=stopping_criterion, dataset=dataset)
-    
-
-    train_acc, test_acc, epoch = Experiment(args).run()
-    torch.cuda.empty_cache()
+    for trial in range(num_trials):
+        dataset = task.get_dataset()
+        dataset.generate_data(name)
+        G = to_networkx(dataset.graph, to_undirected=True)
+        #print("Starting spectral gap: ", rewiring.spectral_gap(G))
+        for flip in range(num_flips):
+            rewiring.rlef(G)
+            #print("Ending spectral gap: ", rewiring.spectral_gap(G))
+        dataset.graph.edge_index = from_networkx(G).edge_index
+        args = main.get_fake_args(task=task, num_layers=num_layers, loader_workers=7,
+                                  type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=False)
+        train_acc, validation_acc, test_acc, epoch = Experiment(args).run()
+        accuracies.append(test_acc)
+        torch.cuda.empty_cache()
+    print("average acc: ", np.average(accuracies))
+    print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))

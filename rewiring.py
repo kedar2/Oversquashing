@@ -40,7 +40,7 @@ def second_neighborhood(i, G):
 	for j in G.neighbors(i):
 		second_neighbors.add(j)
 		for k in G.neighbors(j):
-			second_neighbors = second_neighbors.union(neighbors_of_j)
+			second_neighbors.add(k)
 	second_neighbors.add(i)
 	return second_neighbors
 
@@ -108,7 +108,7 @@ def sdrf(G, curvatures=None, max_iterations=100, temperature=5):
 		curvatures = compute_curvature(G)
 	for iteration in range(max_iterations):
 		(u, v) = argmin(curvatures)
-		print(u, v, curvatures[(u,v)])
+		#print(u, v, curvatures[(u,v)])
 		ric_uv = curvatures[(u, v)]
 		improvements = {}
 		for k in G.neighbors(u):
@@ -163,3 +163,17 @@ def rlef(G):
 			G.add_edge(i,v)
 			G.add_edge(j,u)
 		return G
+def augment_degree(G):
+	i = argmin(dict(G.degree))
+	neighbors_of_i = G.neighbors(i)
+	second_neighbors_of_i = second_neighborhood(i, G)
+	second_neighbors_of_i = second_neighbors_of_i.difference(set(neighbors_of_i)).difference({i})
+	if second_neighbors_of_i == set():
+		return None
+	lowest_degree = inf
+	for j in second_neighbors_of_i:
+		if G.degree(j) < lowest_degree:
+			best_second_neighbor = j
+			lowest_degree = G.degree(j)
+	G.add_edge(i, j)
+	return G
