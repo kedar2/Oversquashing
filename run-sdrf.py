@@ -33,7 +33,7 @@ if __name__ == '__main__':
     names = ["cornell", "texas", "wisconsin", "chameleon", "squirrel", "actor", "cora", "citeseer", "pubmed"]
     stopping_criterion = STOP.VALIDATION
     num_layers=3
-    num_trials=1
+    num_trials=20
     num_flips=75
     accuracies = []    
     for name in names:
@@ -52,4 +52,4 @@ if __name__ == '__main__':
             accuracies.append(test_acc)
             torch.cuda.empty_cache()
         print("average acc: ", np.average(accuracies))
-        #print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
+        print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
