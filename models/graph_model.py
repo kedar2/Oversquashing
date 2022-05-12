@@ -5,7 +5,7 @@ from torch.nn import functional as F
 
 class GraphModel(torch.nn.Module):
     def __init__(self, gnn_type, num_layers, dim0, h_dim, out_dim, last_layer_fully_adjacent,
-                 unroll, layer_norm, use_activation, use_residual):
+                 unroll, layer_norm, use_activation, use_residual, num_nodes=0):
         super(GraphModel, self).__init__()
         self.gnn_type = gnn_type
         self.unroll = unroll
@@ -16,6 +16,7 @@ class GraphModel(torch.nn.Module):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.num_layers = num_layers
+        self.num_nodes = num_nodes
         self.layers = nn.ModuleList()
         self.layer_norms = nn.ModuleList()
         self.layers.append(gnn_type.get_layer(
@@ -36,7 +37,8 @@ class GraphModel(torch.nn.Module):
 
         self.out_dim = out_dim
         self.out_layer = nn.Linear(in_features=h_dim, out_features=out_dim, bias=False)
-
+        if self.last_layer_fully_adjacent:
+            self.fully_adjacent_layer = nn.Linear(in_features=self.num_nodes, out_features=self.num_nodes)
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
 
@@ -47,11 +49,10 @@ class GraphModel(torch.nn.Module):
                 layer = self.layers[i]
             new_x = x
             if self.last_layer_fully_adjacent and i == self.num_layers - 1:
-                pass
-                # implement this
+                new_x = x + self.fully_adjacent_layer(x.T).T
             else:
                 edges = edge_index
-            new_x = layer(new_x, edges)
+                new_x = layer(new_x, edges)
             if self.use_activation:
                 new_x = F.relu(new_x)
             x = new_x
