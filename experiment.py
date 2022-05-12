@@ -8,6 +8,7 @@ from attrdict import AttrDict
 
 from common import STOP
 from models.graph_model import GraphModel
+from models.graph_model2 import GCN
 
 
 class Experiment():
@@ -42,13 +43,13 @@ class Experiment():
 
         self.train_samples, self.validation_samples, self.test_samples = self.dataset.decide_training_set(self.train_fraction, self.validation_fraction)
 
-        self.model = GraphModel(gnn_type=gnn_type, num_layers=num_layers, dim0=dim0, h_dim=self.dim, out_dim=out_dim,
-                                last_layer_fully_adjacent=args.last_layer_fully_adjacent, unroll=args.unroll,
-                                layer_norm=not args.no_layer_norm,
-                                use_activation=not args.no_activation,
-                                use_residual=not args.no_residual, num_nodes=num_nodes
-                                ).to(self.device)
-
+        #self.model = GraphModel(gnn_type=gnn_type, num_layers=num_layers, dim0=dim0, h_dim=self.dim, out_dim=out_dim,
+        #                        last_layer_fully_adjacent=args.last_layer_fully_adjacent, unroll=args.unroll,
+        #                        layer_norm=not args.no_layer_norm,
+        #                        use_activation=not args.no_activation,
+        #                        use_residual=not args.no_residual, num_nodes=num_nodes
+        #                        ).to(self.device)
+        self.model = GCN(data=self.data).to(self.device)
         #print(f'Starting experiment')
         #self.print_args(args)
         #print(f'Training examples: {len(self.train_samples)}, validation examples: {len(self.validation_samples)}')

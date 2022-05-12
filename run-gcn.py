@@ -27,26 +27,21 @@ if __name__ == '__main__':
 
     task = Task.DEFAULT
     gnn_type = GNN_TYPE.GCN
-    name = "wisconsin"
+    names = ["cornell", "texas", "wisconsin", "chameleon", "squirrel", "actor", "cora", "citeseer", "pubmed"]
     stopping_criterion = STOP.VALIDATION
     num_layers=3
     num_trials=20
-    accuracies = []
-
-    
-
-    
-
-    
-
-    for trial in range(num_trials):
-        dataset = task.get_dataset()
-        dataset.generate_data(name)
-        args = main.get_fake_args(task=task, num_layers=num_layers, loader_workers=7,
-                                  type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=True)
-        train_acc, validation_acc, test_acc, epoch = Experiment(args).run()
-        accuracies.append(test_acc)
-        torch.cuda.empty_cache()
-    print("average acc: ", np.average(accuracies))
-    print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
+    for name in names:
+        accuracies = []
+        print("TESTING: " + name)
+        for trial in range(num_trials):
+            dataset = task.get_dataset()
+            dataset.generate_data(name)
+            args = main.get_fake_args(task=task, num_layers=num_layers, loader_workers=7,
+                                      type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=True)
+            train_acc, validation_acc, test_acc, epoch = Experiment(args).run()
+            accuracies.append(test_acc)
+            torch.cuda.empty_cache()
+        print("average acc: ", np.average(accuracies))
+        #print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
     

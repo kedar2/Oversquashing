@@ -99,7 +99,12 @@ def compute_curvature(G):
 		(u, v) = edge
 		curvatures[(u,v)] = balanced_forman(u, v, G)
 	return curvatures
-
+def average_curvature(G):
+	curv = compute_curvature(G)
+	total = 0
+	for edge in curv:
+		total += curv[edge]
+	return total/len(curv)
 def sdrf(G, curvatures=None, max_iterations=100, temperature=5):
 	# stochastic discrete ricci flow
 	num_nodes = len(G.nodes)

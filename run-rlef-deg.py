@@ -33,8 +33,9 @@ if __name__ == '__main__':
     names = ["cornell", "texas", "wisconsin", "chameleon", "squirrel", "actor", "cora", "citeseer", "pubmed"]
     stopping_criterion = STOP.VALIDATION
     num_layers=3
-    num_trials=1
-    num_flips=75
+    num_trials=20
+    num_deg = 25
+    num_flips=400
     accuracies = []    
     for name in names:
         accuracies = []
@@ -44,12 +45,16 @@ if __name__ == '__main__':
             dataset.generate_data(name)
             G = to_networkx(dataset.graph, to_undirected=True)
             #print("Starting spectral gap: ", rewiring.spectral_gap(G))
-            rewiring.sdrf(G, max_iterations=num_flips)
+            for deg_add in range(num_deg):
+                rewiring.augment_degree(G)
+            for flip in range(num_flips):
+                rewiring.rlef(G)
+                #print("Ending spectral gap: ", rewiring.spectral_gap(G))
             dataset.graph.edge_index = from_networkx(G).edge_index
             args = main.get_fake_args(task=task, num_layers=num_layers, loader_workers=7,
-                                      type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=True)
+                                      type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=False)
             train_acc, validation_acc, test_acc, epoch = Experiment(args).run()
             accuracies.append(test_acc)
             torch.cuda.empty_cache()
         print("average acc: ", np.average(accuracies))
-        #print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
+        print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
