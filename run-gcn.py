@@ -43,5 +43,5 @@ if __name__ == '__main__':
             accuracies.append(test_acc)
             torch.cuda.empty_cache()
         print("average acc: ", np.average(accuracies))
-        #print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
+        print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
     
