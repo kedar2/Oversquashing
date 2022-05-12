@@ -4,12 +4,12 @@ import torch_geometric
 from torch_geometric.data import Data
 from torch.nn import functional as F
 from sklearn.model_selection import train_test_split
-from torch_geometric.transforms import LargestConnectedComponents
+#from torch_geometric.transforms import LargestConnectedComponents
 from torch_geometric.datasets import WebKB, WikipediaNetwork, Actor, Planetoid
-from torch_geometric.utils import homophily, to_undirected, to_networkx
+from torch_geometric.utils import homophily, to_undirected, to_networkx, subgraph
 from torch_geometric.nn import MessagePassing
 from torch_geometric.utils import add_self_loops, degree, to_undirected, remove_self_loops
-
+import networkx as nx
 
 class GraphDataset(object):
     
@@ -23,7 +23,6 @@ class GraphDataset(object):
     citeseer = Planetoid(root="data", name="citeseer")[0]
     pubmed = Planetoid(root="data", name="pubmed")[0]
     dataset_names = {"cornell": cornell, "wisconsin": wisconsin, "texas": texas, "chameleon": chameleon, "squirrel": squirrel, "actor": actor, "cora": cora, "citeseer": citeseer, "pubmed": pubmed}
-    largest_connected_components = LargestConnectedComponents()
     
     def __init__(self):
         super(GraphDataset, self).__init__()
@@ -32,7 +31,7 @@ class GraphDataset(object):
     def generate_data(self, name):
         self.graph = self.dataset_names[name].clone().detach()
         self.graph.edge_index = to_undirected(self.graph.edge_index)
-        self.graph = self.largest_connected_components(self.graph)
+        self.pass_to_largest_cc()
         self.graph.edge_index = remove_self_loops(self.graph.edge_index)[0]
         self.out_dim = max(self.graph.y) + 1
         self.num_nodes = len(self.graph.y)
@@ -45,4 +44,7 @@ class GraphDataset(object):
         return train, validation, test
 
     def pass_to_largest_cc(self):
-        self.graph = self.largest_connected_components(self.graph)
+        G = to_networkx(self.graph, to_undirected=True)
+        largest_cc_vertices = torch.tensor(list(max(nx.connected_components(G), key=len)))
+        self.graph = self.graph.subgraph(largest_cc_vertices)
+        return self.graph
