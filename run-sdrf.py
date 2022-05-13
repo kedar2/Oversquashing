@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     task = Task.DEFAULT
     gnn_type = GNN_TYPE.GCN
-    names = ["pubmed", "cornell", "texas", "wisconsin", "chameleon", "squirrel", "actor", "cora", "citeseer"]
+    names = ["cornell", "texas", "wisconsin", "chameleon", "squirrel", "actor", "cora", "citeseer", "pubmed"]
     hyperparams = {
     "cornell": AttrDict({"dropout": 0.2411, "num_layers": 1, "dim": 128, "learning_rate": 0.0172, "weight_decay": 0.0125, "max_iterations": 135, "temperature": 130, "C_plus": 0.25}),
     "texas": AttrDict({"dropout": 0.5954, "num_layers": 1, "dim": 128, "learning_rate": 0.0278, "weight_decay": 0.0623, "max_iterations": 47, "temperature": 172, "C_plus": 2.25}),
@@ -43,9 +43,7 @@ if __name__ == '__main__':
     "pubmed": AttrDict({"dropout": 0.3749, "num_layers": 3, "dim": 128, "learning_rate": 0.0112, "weight_decay": 0.0138, "max_iterations": 166, "temperature": 115, "C_plus": 14.43}),
     }
     stopping_criterion = STOP.VALIDATION
-    num_layers=3
     num_trials=20
-    num_flips=75
     accuracies = []    
     for name in names:
         accuracies = []
@@ -55,9 +53,9 @@ if __name__ == '__main__':
             dataset.generate_data(name)
             G = to_networkx(dataset.graph, to_undirected=True)
             #print("Starting spectral gap: ", rewiring.spectral_gap(G))
-            rewiring.sdrf(G, max_iterations=num_flips)
+            rewiring.sdrf(G, max_iterations=hyperparams[name].max_iterations, temperature=hyperparams[name].temperature, C_plus=hyperparams[name].C_plus)
             dataset.graph.edge_index = from_networkx(G).edge_index
-            args = main.get_fake_args(task=task, num_layers=num_layers, loader_workers=7,
+            args = main.get_fake_args(task=task, num_layers=hyperparams[name].num_layers, loader_workers=7,
                                       type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=True)
             train_acc, validation_acc, test_acc, epoch = Experiment(args).run()
             accuracies.append(test_acc)
