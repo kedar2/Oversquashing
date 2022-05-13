@@ -40,7 +40,6 @@ if __name__ == '__main__':
     "pubmed": AttrDict({"dropout": 0.4013, "num_layers": 1, "dim": 64, "learning_rate": 0.0095, "weight_decay": 0.0448})
     }
     stopping_criterion = STOP.VALIDATION
-    num_layers=3
     num_trials=20
     for name in names:
         accuracies = []
@@ -48,7 +47,7 @@ if __name__ == '__main__':
         for trial in range(num_trials):
             dataset = task.get_dataset()
             dataset.generate_data(name)
-            args = main.get_fake_args(task=task, num_layers=num_layers, loader_workers=7,
+            args = main.get_fake_args(task=task, num_layers=hyperparams[name].num_layers, loader_workers=7,
                                       type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=False)
             train_acc, validation_acc, test_acc, epoch = Experiment(args).run()
             args += hyperparams[name]
