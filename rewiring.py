@@ -4,6 +4,7 @@ import numpy as np
 from numpy.random import random
 import networkx as nx
 from math import inf
+from torch_geometric.data import Data
 
 degree = torch_geometric.utils.degree
 softmax = torch.nn.Softmax(dim=0)
@@ -15,9 +16,16 @@ def argmin(d):
 			smallest = d[i]
 			key_of_smallest = i
 	return key_of_smallest
+def argmax(d):
+	largest = -inf
+	for i in d:
+		if d[i] > largest:
+			largest = d[i]
+			key_of_largest = i
+	return key_of_largest
 
 def spectral_gap(G):
-	return nx.laplacian_spectrum(G)[1]
+	return nx.normalized_laplacian_spectrum(G)[1]
 
 def sample(weights, temperature=1, use_softmax=True):
 	# samples randomly from a list of weights
@@ -45,7 +53,7 @@ def second_neighborhood(i, G):
 	return second_neighbors
 
 def balanced_forman(i, j, G):
-	# Calculates Ric(i, j) for a graph G of type networkx.DiGraph
+	# Calculates Ric(i, j) for a graph G of type networkx.Graph
 	di = G.degree(i)
 	dj = G.degree(j)
 	if di <= 1 or dj <= 1:
@@ -92,20 +100,47 @@ def balanced_forman(i, j, G):
 	ric = 2/di + 2/dj - 2 + triangle_term + square_term
 	return ric
 
+class CurvatureGraph:
+	# data structure that keeps track of curvature changes in a graph
+	def __init__(self, G):
+		self.G = G
+		self.num_nodes = len(G.nodes)
+		self.num_edges = len(G.edges)
+		self.curvatures = {}
+		self.total_curvature = 0
+		for edge in G.edges:
+			(u, v) = edge
+			ric_uv = balanced_forman(u, v, G)
+			self.curvatures[(u,v)] = ric_uv
+			self.total_curvature += ric_uv
+	def mean_curvature(self):
+		return self.total_curvature / self.num_edges
+	def ric(edge):
+		return self.curvatures[edge]
+	def update_curvature(self, edge_set):
+		for (u, v) in edge_set:
+			old_curvature = self.curvatures[(u,v)]
+			new_curvature = balanced_forman(u, v, G)
+			self.total_curvature += (new_curvature - old_curvature)
+
 def compute_curvature(G):
 	# computes Ric(i, j) for all edges (i, j)
 	curvatures = {}
 	for edge in G.edges:
 		(u, v) = edge
-		curvatures[(u,v)] = balanced_forman(u, v, G)
+		(a, b) = (min(u,v), max(u,v))
+		curvatures[(a,b)] = balanced_forman(a, b, G)
 	return curvatures
-def average_curvature(G):
-	curv = compute_curvature(G)
+def average_curvature(G, curvatures=None):
+	if curvatures == None:
+		curv = compute_curvature(G)
+	else:
+		curv = curvatures
 	total = 0
 	for edge in curv:
 		total += curv[edge]
 	return total/len(curv)
-def sdrf(G, curvatures=None, max_iterations=100, temperature=5):
+def sdrf(G, curvatures=None, max_iterations=1, temperature=5, C_plus=None):
 	# stochastic discrete ricci flow
 	num_nodes = len(G.nodes)
 	num_edges = len(G.edges)
@@ -113,40 +148,52 @@ def sdrf(G, curvatures=None, max_iterations=100, temperature=5):
 		curvatures = compute_curvature(G)
 	for iteration in range(max_iterations):
 		(u, v) = argmin(curvatures)
+		#print(u, v)
 		#print(u, v, curvatures[(u,v)])
 		ric_uv = curvatures[(u, v)]
 		improvements = {}
 		for k in G.neighbors(u):
 			for l in G.neighbors(v):
-				G_new = G.copy()
 				a = min(k, l)
 				b = max(k, l)
-				G_new.add_edge(a, b)
-				improvements[(a,b)] = balanced_forman(u, v, G_new) - ric_uv
-		improvements_list = [[k, l, improvements[(k,l)]] for (k, l) in improvements]
-		improvement_values = [x[2] for x in improvements_list]
-		chosen_index = sample(improvement_values,temperature=temperature)
-		i = improvements_list[chosen_index][0]
-		j = improvements_list[chosen_index][1]
-		G.add_edge(i, j)
-		# need to update curvatures at neighbors of i and j
-		edges_to_update = set()
-		for w in G.neighbors(i):
-			a = min(w, i)
-			b = max(w, i)
-			edges_to_update.add((a,b))
-		for x in G.neighbors(j):
-			a = min(x, j)
-			b = max(x, j)
-			edges_to_update.add((a,b))
-		for w in G.neighbors(i):
-			for x in G.neighbors(j):
-				a = min(w, x)
-				b = max(w, x)
+				if not (a, b) in G.edges:
+					G.add_edge(a, b)
+					improvements[(a,b)] = balanced_forman(u, v, G) - ric_uv
+					G.remove_edge(a, b)
+		if improvements != {}:
+			improvements_list = [[k, l, improvements[(k,l)]] for (k, l) in improvements]
+			improvement_values = [x[2] for x in improvements_list]
+			chosen_index = sample(improvement_values,temperature=temperature)
+			i = improvements_list[chosen_index][0]
+			j = improvements_list[chosen_index][1]
+			G.add_edge(i, j)
+			#print(i,j)
+			# need to update curvatures at neighbors of i and j
+			edges_to_update = set()
+			for w in G.neighbors(i):
+				a = min(w, i)
+				b = max(w, i)
 				edges_to_update.add((a,b))
-		for edge in edges_to_update:
-			(w, x) = edge
-			curvatures[(w, x)] = balanced_forman(w, x, G)
+			for x in G.neighbors(j):
+				a = min(x, j)
+				b = max(x, j)
+				edges_to_update.add((a,b))
+			for w in G.neighbors(i):
+				for x in G.neighbors(j):
+					if x in G.neighbors(w):
+						a = min(w, x)
+						b = max(w, x)
+						edges_to_update.add((a,b))
+			for edge in edges_to_update:
+				(w, x) = edge
+				curvatures[(w, x)] = balanced_forman(w, x, G)
+			if C_plus != None:
+				highest_curvature_edge = argmax(curvatures)
+				(u, v) = highest_curvature_edge
+				(u, v) = (min(u, v), max(u,v))
+				if curvatures[highest_curvature_edge] > C_plus:
+					G.remove_edge(u, v)
+					curvatures.pop((u,v))
 	return G, curvatures
 
 def rlef(G):
@@ -182,3 +229,69 @@ def augment_degree(G):
 			lowest_degree = G.degree(j)
 	G.add_edge(i, j)
 	return G
+
+# DIGL pre-processing, from https://github.com/gasteigerjo/gdc.git
+
+def get_adj_matrix(dataset) -> np.ndarray:
+    num_nodes = dataset.x.shape[0]
+    adj_matrix = np.zeros(shape=(num_nodes, num_nodes))
+    for i, j in zip(dataset.edge_index[0], dataset.edge_index[1]):
+        adj_matrix[i, j] = 1.
+    return adj_matrix
+
+def get_ppr_matrix(
+        adj_matrix: np.ndarray,
+        alpha: float = 0.1) -> np.ndarray:
+    num_nodes = adj_matrix.shape[0]
+    A_tilde = adj_matrix + np.eye(num_nodes)
+    D_tilde = np.diag(1/np.sqrt(A_tilde.sum(axis=1)))
+    H = D_tilde @ A_tilde @ D_tilde
+    return alpha * np.linalg.inv(np.eye(num_nodes) - (1 - alpha) * H)
+
+def get_top_k_matrix(A: np.ndarray, k: int = 128) -> np.ndarray:
+    num_nodes = A.shape[0]
+    row_idx = np.arange(num_nodes)
+    A[A.argsort(axis=0)[:num_nodes - k], row_idx] = 0.
+    norm = A.sum(axis=0)
+    norm[norm <= 0] = 1 # avoid dividing by zero
+    return A/norm
+
+def get_clipped_matrix(A: np.ndarray, eps: float = 0.01) -> np.ndarray:
+    num_nodes = A.shape[0]
+    A[A < eps] = 0.
+    norm = A.sum(axis=0)
+    norm[norm <= 0] = 1 # avoid dividing by zero
+    return A/norm
+
+def digl(base, alpha, k=None, eps=None):
+	# generate adjacency matrix from sparse representation
+    adj_matrix = get_adj_matrix(base)
+    # obtain exact PPR matrix
+    ppr_matrix = get_ppr_matrix(adj_matrix, alpha=alpha)
+
+    if k != None:
+            print(f'Selecting top {k} edges per node.')
+            ppr_matrix = get_top_k_matrix(ppr_matrix, k=k)
+    elif eps != None:
+            print(f'Selecting edges with weight greater than {eps}.')
+            ppr_matrix = get_clipped_matrix(ppr_matrix, eps=eps)
+    else:
+        raise ValueError
+
+        # create PyG Data object
+    edges_i = []
+    edges_j = []
+    edge_attr = []
+    for i, row in enumerate(ppr_matrix):
+        for j in np.where(row > 0)[0]:
+            edges_i.append(i)
+            edges_j.append(j)
+            edge_attr.append(ppr_matrix[i, j])
+    edge_index = [edges_i, edges_j]
+
+    data = Data(
+        x=base.x,
+        edge_index=torch.LongTensor(edge_index),
+        y=base.y
+    )        
+    return data
