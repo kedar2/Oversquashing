@@ -15,7 +15,7 @@ class Experiment():
     def __init__(self, args):
         self.task = args.task
         gnn_type = args.type
-        num_layers = 3 if args.num_layers is None else args.num_layers
+        self.num_layers = args.num_layers
         self.dim = args.dim
         self.unroll = args.unroll
         self.train_fraction = args.train_fraction
@@ -29,6 +29,11 @@ class Experiment():
         self.stopping_criterion = args.stop
         self.patience = args.patience
         self.dataset = args.dataset
+        self.weight_decay = args.weight_decay
+        self.dropout = args.dropout
+        self.learning_rate = args.learning_rate
+        self.hidden = [self.dim] * self.num_layers
+
 
         #seed = 11
         #torch.manual_seed(seed)
@@ -49,7 +54,7 @@ class Experiment():
         #                        use_activation=not args.no_activation,
         #                        use_residual=not args.no_residual, num_nodes=num_nodes
         #                        ).to(self.device)
-        self.model = GCN(data=self.data).to(self.device)
+        self.model = GCN(data=self.data, hidden=self.hidden, dropout=self.dropout).to(self.device)
         #print(f'Starting experiment')
         #self.print_args(args)
         #print(f'Training examples: {len(self.train_samples)}, validation examples: {len(self.validation_samples)}')
@@ -64,7 +69,7 @@ class Experiment():
         print()
 
     def run(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001, weight_decay=0.02)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         scheduler = ReduceLROnPlateau(optimizer, mode='max', threshold_mode='abs', factor=0.5, patience=10)
         #print('Starting training')
 
