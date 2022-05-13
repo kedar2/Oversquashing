@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     task = Task.DEFAULT
     gnn_type = GNN_TYPE.GCN
-    names = ["cornell", "texas", "wisconsin", "chameleon", "squirrel", "actor", "cora", "citeseer", "pubmed"]
+    names = ["pubmed", "cornell", "texas", "wisconsin", "chameleon", "squirrel", "actor", "cora", "citeseer"]
     stopping_criterion = STOP.VALIDATION
     num_layers=3
     num_trials=20
