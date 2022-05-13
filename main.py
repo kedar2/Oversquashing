@@ -36,7 +36,7 @@ def get_fake_args(
         task=Task.DEFAULT,
         type=GNN_TYPE.GCN,
         dim=32,
-        num_layers=None,
+        num_layers=3,
         train_fraction=0.6,
         validation_fraction=0.2,
         max_epochs=50000,
@@ -51,7 +51,10 @@ def get_fake_args(
         no_activation=False,
         no_residual=False,
         unroll=False,
-        dataset='dataset'
+        dataset='dataset',
+        dropout=0,
+        learning_rate=0.001,
+        weight_decay=0
 ):
     return AttrDict({
         'task': task,
@@ -72,5 +75,8 @@ def get_fake_args(
         'no_activation': no_activation,
         'no_residual': no_residual,
         'unroll': unroll,
-        'dataset': dataset
+        'dataset': dataset,
+        'dropout': dropout,
+        'learning_rate': learning_rate,
+        'weight_decay': weight_decay
     })
