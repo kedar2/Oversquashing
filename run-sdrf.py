@@ -31,6 +31,17 @@ if __name__ == '__main__':
     task = Task.DEFAULT
     gnn_type = GNN_TYPE.GCN
     names = ["pubmed", "cornell", "texas", "wisconsin", "chameleon", "squirrel", "actor", "cora", "citeseer"]
+    hyperparams = {
+    "cornell": AttrDict({"dropout": 0.2411, "num_layers": 1, "dim": 128, "learning_rate": 0.0172, "weight_decay": 0.0125, "max_iterations": 135, "temperature": 130, "C_plus": 0.25}),
+    "texas": AttrDict({"dropout": 0.5954, "num_layers": 1, "dim": 128, "learning_rate": 0.0278, "weight_decay": 0.0623, "max_iterations": 47, "temperature": 172, "C_plus": 2.25}),
+    "wisconsin": AttrDict({"dropout": 0.6033, "num_layers": 1, "dim": 128, "learning_rate": 0.0295, "weight_decay": 0.1920, "max_iterations": 27, "temperature": 32, "C_plus": 0.5}),
+    "chameleon": AttrDict({"dropout": 0.7265, "num_layers": 1, "dim": 128, "learning_rate": 0.0180, "weight_decay": 0.2101, "max_iterations": 832, "temperature": 77, "C_plus": 3.35}),
+    "squirrel": AttrDict({"dropout": 0.7401, "num_layers": 2, "dim": 16, "learning_rate": 0.0189, "weight_decay": 0.2255, "max_iterations": 6157, "temperature": 178, "C_plus": 0.5}),
+    "actor": AttrDict({"dropout": 0.6866, "num_layers": 1, "dim": 128, "learning_rate": 0.0095, "weight_decay": 0.0727, "max_iterations": 1010, "temperature": 69, "C_plus": 1.22}),
+    "cora": AttrDict({"dropout": 0.3396, "num_layers": 1, "dim": 128, "learning_rate": 0.0244, "weight_decay": 0.1076, "max_iterations": 100, "temperature": 163, "C_plus": 0.95}),
+    "citeseer": AttrDict({"dropout": 0.4103, "num_layers": 1, "dim": 64, "learning_rate": 0.0199, "weight_decay": 0.4551, "max_iterations": 84, "temperature": 180, "C_plus": 0.22}),
+    "pubmed": AttrDict({"dropout": 0.3749, "num_layers": 3, "dim": 128, "learning_rate": 0.0112, "weight_decay": 0.0138, "max_iterations": 166, "temperature": 115, "C_plus": 14.43}),
+    }
     stopping_criterion = STOP.VALIDATION
     num_layers=3
     num_trials=20
