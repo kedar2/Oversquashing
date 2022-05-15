@@ -43,7 +43,7 @@ if __name__ == '__main__':
     "pubmed": AttrDict({"dropout": 0.3749, "num_layers": 3, "dim": 128, "learning_rate": 0.0112, "weight_decay": 0.0138, "max_iterations": 166, "temperature": 115, "C_plus": 14.43}),
     }
     stopping_criterion = STOP.VALIDATION
-    num_trials=20
+    num_trials=1000
     accuracies = []    
     for name in names:
         accuracies = []
@@ -59,6 +59,7 @@ if __name__ == '__main__':
             args = main.get_fake_args(task=task, num_layers=hyperparams[name].num_layers, loader_workers=7,
                                       type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=True)
             train_acc, validation_acc, test_acc, epoch = Experiment(args).run()
+            print("Test accuracy: ", test_acc) 
             accuracies.append(test_acc)
             torch.cuda.empty_cache()
         print("average acc: ", np.average(accuracies))
