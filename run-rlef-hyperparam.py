@@ -8,6 +8,7 @@ import rewiring
 import networkx as nx
 import numpy as np
 from numpy import random
+import torch.multiprocessing as mp
 
 override_params = {
     2: {'batch_size': 64, 'eval_every': 1000},
@@ -26,12 +27,10 @@ class Results:
         self.test_acc = test_acc
         self.epoch = epoch
 
-
-if __name__ == '__main__':
-
+def run(name):
     task = Task.DEFAULT
     gnn_type = GNN_TYPE.GCN
-    names = ["chameleon", "squirrel", "actor"]
+
     hyperparams = {
     "cornell": AttrDict({"skip_connection": 0.1, "dropout": 0.2411, "num_layers": 1, "dim": 128, "learning_rate": 0.0172, "weight_decay": 0.0125, "max_iterations": 135, "temperature": 130, "C_plus": 0.25}),
     "texas": AttrDict({"skip_connection": 0.1, "dropout": 0.5954, "num_layers": 1, "dim": 128, "learning_rate": 0.0278, "weight_decay": 0.0623, "max_iterations": 47, "temperature": 172, "C_plus": 2.25}),
@@ -43,35 +42,39 @@ if __name__ == '__main__':
     "citeseer": AttrDict({"skip_connection": 0.1, "dropout": 0.4103, "num_layers": 1, "dim": 64, "learning_rate": 0.0199, "weight_decay": 0.4551, "max_iterations": 84, "temperature": 180, "C_plus": 0.22}),
     "pubmed": AttrDict({"skip_connection": 0.1, "dropout": 0.3749, "num_layers": 3, "dim": 128, "learning_rate": 0.0112, "weight_decay": 0.0138, "max_iterations": 166, "temperature": 115, "C_plus": 14.43}),
     }
+    max_iterations = 5000 * random.random()
+    hyperparams[name] += AttrDict({"max_iterations": max_iterations})
     stopping_criterion = STOP.VALIDATION
     num_trials=20
     accuracies = []
-    for name in names:
-        print("TUNING: " + name)
-        best_test = 0
-        for hyperparam_trial in range(100):
-            accuracies = []
-            max_iterations = 5000 * random.random()
-            num_layers = random.choice([1,2,3,4,5,6])
-            dim = random.choice([32,64,128])
-            hyperparams += AttrDict({"max_iterations": max_iterations, "num_layers": num_layers, "dim": dim})
-            for trial in range(num_trials):
-                dataset = task.get_dataset()
-                dataset.generate_data(name)
-                G = to_networkx(dataset.graph, to_undirected=True)
-                #print("Starting spectral gap: ", rewiring.spectral_gap(G))
-                for i in range(hyperparams[name].max_iterations):
+    
+    for trial in range(num_trials):
+        dataset = task.get_dataset()
+        dataset.generate_data(name)
+        args = main.get_fake_args(task=task, num_layers=hyperparams[name].num_layers, loader_workers=7, type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=False)
+        G = to_networkx(dataset.graph, to_undirected=True)
+        for i in range(int(hyperparams[name].max_iterations)):
                     rewiring.rlef(G)
-                dataset.graph.edge_index = from_networkx(G).edge_index
-                args = main.get_fake_args(task=task, num_layers=hyperparams[name].num_layers, loader_workers=7,
-                                          type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=True)
-                train_acc, validation_acc, test_acc, epoch = Experiment(args).run()
-                accuracies.append(test_acc)
-                torch.cuda.empty_cache()
-            avg_acc = np.average(accuracies)
-            if avg_acc > best_test:
-                best_test = avg_acc
-                print("NEW BEST TEST ACCURACY: ", avg_acc)
-                print("MAX ITERATIONS: ", max_iterations)
-                print("DIM: ", dim)
-                print("NUM LAYERS: ", num_layers)
+        dataset.graph.edge_index = from_networkx(G).edge_index
+        train_acc, validation_acc, test_acc, epoch = Experiment(args).run()
+        args += hyperparams[name]
+        accuracies.append(test_acc)
+        #print((str(subprocess.check_output('nvidia-smi').decode('unicode_escape'))))
+    print("MAX ITERATIONS: ", max_iterations)
+    print("average acc: ", np.average(accuracies))
+    print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
+    print("\n")
+    return np.average(accuracies), max_iterations
+
+
+
+
+
+if __name__ == '__main__':
+    #print(run('cornell'))
+    names = ['chameleon', 'squirrel', 'actor']
+    mp.set_start_method('spawn')
+    for name in names:
+        print("-----------------TESTING: ", name, "-----------------")
+        with mp.Pool(5) as p:
+            p.map(run, name * 100)
