@@ -77,4 +77,4 @@ if __name__ == '__main__':
     for name in names:
         print("-----------------TESTING: ", name, "-----------------")
         with mp.Pool(5) as p:
-            p.map(run, name * 100)
+            p.map(run, [name] * 100)
