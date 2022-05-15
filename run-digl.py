@@ -35,9 +35,9 @@ if __name__ == '__main__':
     "wisconsin": AttrDict({"dropout": 0.2941, "num_layers": 1, "dim": 128, "learning_rate": 0.0226, "weight_decay": 0.0226, "alpha": 0.1246, "k": None, "eps": 0.0001}),
     "chameleon": AttrDict({"dropout": 0.4191, "num_layers": 1, "dim": 128, "learning_rate": 0.0001, "weight_decay": 0.0001, "alpha": 0.0244, "k": 64, "eps": None}),
     "squirrel": AttrDict({"dropout": 0.7094, "num_layers": 1, "dim": 64, "learning_rate": 0.0192, "weight_decay": 0.0192, "alpha": 0.1610, "k": 64, "eps": 0.0016}),
-    "actor": AttrDict({"dropout": 0.4012, "num_layers": 1, "dim": 64, "learning_rate": 0.0141, "weight_decay": 0.0141, "alpha": 0.0706, "k": None, "eps": None}),
+    "actor": AttrDict({"dropout": 0.4012, "num_layers": 1, "dim": 64, "learning_rate": 0.0141, "weight_decay": 0.0141, "alpha": 0.0706, "k": 128, "eps": None}),
     "cora": AttrDict({"dropout": 0.3315, "num_layers": 1, "dim": 64, "learning_rate": 0.0572, "weight_decay": 0.0572, "alpha": 0.0773, "k": 128, "eps": 0.0008}),
-    "citeseer": AttrDict({"dropout": 0.5561, "num_layers": 1, "dim": 64, "learning_rate": 0.5013, "weight_decay": 0.5013, "alpha": 0.1076, "k": None, "eps": None}),
+    "citeseer": AttrDict({"dropout": 0.5561, "num_layers": 1, "dim": 64, "learning_rate": 0.5013, "weight_decay": 0.5013, "alpha": 0.1076, "k": None, "eps": 0.0008}),
     "pubmed": AttrDict({"dropout": 0.4915, "num_layers": 2, "dim": 128, "learning_rate": 0.0597, "weight_decay": 0.0597, "alpha": 0.1155, "k": 128, "eps": None})
     }
     stopping_criterion = STOP.VALIDATION
