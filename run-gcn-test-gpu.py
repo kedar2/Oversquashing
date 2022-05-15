@@ -5,7 +5,7 @@ from experiment import Experiment
 import subprocess
 import torch
 import numpy as np
-from torch.multiprocessing import Pool
+import torch.multiprocessing as mp
 
 override_params = {
     2: {'batch_size': 64, 'eval_every': 1000},
@@ -60,7 +60,8 @@ def run(_):
         #print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
     return np.average(accuracies)
 if __name__ == '__main__':
-    with Pool(5) as p:
+    mp.set_start_method('spawn')
+    with mp.Pool(5) as p:
         print(p.map(run, [None] * 5))
 
     
