@@ -43,7 +43,8 @@ def run(name):
     "pubmed": AttrDict({"skip_connection": 0.1, "dropout": 0.3749, "num_layers": 3, "dim": 128, "learning_rate": 0.0112, "weight_decay": 0.0138, "max_iterations": 166, "temperature": 115, "C_plus": 14.43}),
     }
     max_iterations = 5000 * random.random()
-    hyperparams[name] += AttrDict({"max_iterations": max_iterations})
+    num_layers = random.choice([1,2,3,4,5,6,7])
+    hyperparams[name] += AttrDict({"max_iterations": max_iterations, "num_layers": num_layers})
     stopping_criterion = STOP.VALIDATION
     num_trials=20
     accuracies = []
@@ -61,6 +62,7 @@ def run(name):
         accuracies.append(test_acc)
         #print((str(subprocess.check_output('nvidia-smi').decode('unicode_escape'))))
     print("MAX ITERATIONS: ", max_iterations)
+    print("NUM LAYERS: ", num_layers)
     print("average acc: ", np.average(accuracies))
     print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
     print("\n")
