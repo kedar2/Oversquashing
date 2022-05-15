@@ -49,11 +49,12 @@ if __name__ == '__main__':
     for name in names:
         print("TUNING: " + name)
         best_test = 0
-        for hyperparam_trial in range(20):
+        for hyperparam_trial in range(100):
             accuracies = []
             max_iterations = 5000 * random.random()
-            num_layers = 4
-            hyperparams += AttrDict({"max_iterations": max_iterations, "num_layers": num_layers})
+            num_layers = random.choice([1,2,3,4,5,6])
+            dim = random.choice([32,64,128])
+            hyperparams += AttrDict({"max_iterations": max_iterations, "num_layers": num_layers, "dim": dim})
             for trial in range(num_trials):
                 dataset = task.get_dataset()
                 dataset.generate_data(name)
@@ -72,3 +73,5 @@ if __name__ == '__main__':
                 best_test = avg_acc
                 print("NEW BEST TEST ACCURACY: ", avg_acc)
                 print("MAX ITERATIONS: ", max_iterations)
+                print("DIM: ", dim)
+                print("NUM LAYERS: ", num_layers)
