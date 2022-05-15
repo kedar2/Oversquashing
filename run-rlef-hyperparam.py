@@ -72,5 +72,3 @@ if __name__ == '__main__':
                 best_test = avg_acc
                 print("NEW BEST TEST ACCURACY: ", avg_acc)
                 print("MAX ITERATIONS: ", max_iterations)
-                print("DIM: ", dim)
-                print("NUM LAYERS: ", num_layers)
