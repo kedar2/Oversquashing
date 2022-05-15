@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     task = Task.DEFAULT
     gnn_type = GNN_TYPE.GCN
-    names = ["chameleon", "actor", "squirrel"]
+    names = ["actor", "squirrel", "chameleon"]
     hyperparams = {
     "cornell": AttrDict({"dropout": 0.2411, "num_layers": 1, "dim": 128, "learning_rate": 0.0172, "weight_decay": 0.0125, "max_iterations": 135, "temperature": 130, "C_plus": 0.25}),
     "texas": AttrDict({"dropout": 0.5954, "num_layers": 1, "dim": 128, "learning_rate": 0.0278, "weight_decay": 0.0623, "max_iterations": 47, "temperature": 172, "C_plus": 2.25}),
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     "pubmed": AttrDict({"dropout": 0.3749, "num_layers": 3, "dim": 128, "learning_rate": 0.0112, "weight_decay": 0.0138, "max_iterations": 166, "temperature": 115, "C_plus": 14.43}),
     }
     stopping_criterion = STOP.VALIDATION
-    num_trials=1000
+    num_trials= 400
     accuracies = []    
     for name in names:
         accuracies = []
