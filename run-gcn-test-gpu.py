@@ -5,6 +5,7 @@ from experiment import Experiment
 import subprocess
 import torch
 import numpy as np
+from torch.multiprocessing import Pool
 
 override_params = {
     2: {'batch_size': 64, 'eval_every': 1000},
@@ -23,9 +24,7 @@ class Results:
         self.test_acc = test_acc
         self.epoch = epoch
 
-
-if __name__ == '__main__':
-
+def run(_):
     task = Task.DEFAULT
     gnn_type = GNN_TYPE.GCN
     names = ["cornell", "texas", "wisconsin", "chameleon", "squirrel", "actor", "cora", "citeseer", "pubmed"]
@@ -42,7 +41,7 @@ if __name__ == '__main__':
     "pubmed": AttrDict({"dropout": 0.4013, "num_layers": 1, "dim": 64, "learning_rate": 0.0095, "weight_decay": 0.0448})
     }
     stopping_criterion = STOP.VALIDATION
-    num_trials=20
+    num_trials=4
     for name in names:
 
         accuracies = []
@@ -57,6 +56,11 @@ if __name__ == '__main__':
             accuracies.append(test_acc)
             torch.cuda.empty_cache()
             print((str(subprocess.check_output('nvidia-smi').decode('unicode_escape'))))
-        print("average acc: ", np.average(accuracies))
-        print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
+        #print("average acc: ", np.average(accuracies))
+        #print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
+    return np.average(accuracies)
+if __name__ == '__main__':
+    with Pool(5) as p:
+        print(p.map(run, [None] * 5))
+
     
