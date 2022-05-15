@@ -31,27 +31,34 @@ if __name__ == '__main__':
     task = Task.DEFAULT
     gnn_type = GNN_TYPE.GCN
     names = ["cornell", "texas", "wisconsin", "chameleon", "squirrel", "actor", "cora", "citeseer", "pubmed"]
+    hyperparams = {
+    "cornell": AttrDict({"skip_connection": 0.1, "dropout": 0.2411, "num_layers": 5, "dim": 32, "learning_rate": 0.0172, "weight_decay": 0.0125, "max_iterations": 1461, "temperature": 130, "C_plus": 0.25}),
+    "texas": AttrDict({"skip_connection": 0.1, "dropout": 0.5954, "num_layers": 1, "dim": 128, "learning_rate": 0.0278, "weight_decay": 0.0623, "max_iterations": 47, "temperature": 172, "C_plus": 2.25}),
+    "wisconsin": AttrDict({"skip_connection": 0.1, "dropout": 0.6033, "num_layers": 1, "dim": 128, "learning_rate": 0.0295, "weight_decay": 0.1920, "max_iterations": 27, "temperature": 32, "C_plus": 0.5}),
+    "chameleon": AttrDict({"skip_connection": 0.1, "dropout": 0.7265, "num_layers": 1, "dim": 128, "learning_rate": 0.0180, "weight_decay": 0.2101, "max_iterations": 1384, "temperature": 77, "C_plus": 3.35}),
+    "squirrel": AttrDict({"skip_connection": 0.1, "dropout": 0.7401, "num_layers": 2, "dim": 16, "learning_rate": 0.0189, "weight_decay": 0.2255, "max_iterations": 6157, "temperature": 178, "C_plus": 0.5}),
+    "actor": AttrDict({"skip_connection": 0.1, "dropout": 0.6866, "num_layers": 1, "dim": 128, "learning_rate": 0.0095, "weight_decay": 0.0727, "max_iterations": 1010, "temperature": 69, "C_plus": 1.22}),
+    "cora": AttrDict({"skip_connection": 0.1, "dropout": 0.3396, "num_layers": 1, "dim": 128, "learning_rate": 0.0244, "weight_decay": 0.1076, "max_iterations": 100, "temperature": 163, "C_plus": 0.95}),
+    "citeseer": AttrDict({"skip_connection": 0.1, "dropout": 0.4103, "num_layers": 1, "dim": 64, "learning_rate": 0.0199, "weight_decay": 0.4551, "max_iterations": 84, "temperature": 180, "C_plus": 0.22}),
+    "pubmed": AttrDict({"skip_connection": 0.1, "dropout": 0.3749, "num_layers": 3, "dim": 128, "learning_rate": 0.0112, "weight_decay": 0.0138, "max_iterations": 166, "temperature": 115, "C_plus": 14.43}),
+    }
     stopping_criterion = STOP.VALIDATION
-    num_layers=3
-    num_trials=20
-    num_flips=100
-    accuracies = []    
+    num_trials=10
+    accuracies = []
     for name in names:
         accuracies = []
+        spectral_gaps = []
+        ricci_curvatures = []
         print("TESTING: " + name)
         for trial in range(num_trials):
+            print("Trial number: ", trial)
             dataset = task.get_dataset()
             dataset.generate_data(name)
             G = to_networkx(dataset.graph, to_undirected=True)
             #print("Starting spectral gap: ", rewiring.spectral_gap(G))
-            for flip in range(num_flips):
-                rewiring.augment_degree(G)
-                #print("Ending spectral gap: ", rewiring.spectral_gap(G))
-            dataset.graph.edge_index = from_networkx(G).edge_index
-            args = main.get_fake_args(task=task, num_layers=num_layers, loader_workers=7,
-                                      type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=False)
-            train_acc, validation_acc, test_acc, epoch = Experiment(args).run()
-            accuracies.append(test_acc)
-            torch.cuda.empty_cache()
-        print("average acc: ", np.average(accuracies))
-        print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
+            for i in range(hyperparams[name].max_iterations):
+                rewiring.rlef(G)
+            spectral_gaps.append(rewiring.spectral_gap(G))
+            ricci_curvatures.append(rewiring.average_curvature(G))
+        print("average spectral gap: ", np.average(spectral_gaps))
+        print("average ricci curvature: ", np.average(ricci_curvatures))
