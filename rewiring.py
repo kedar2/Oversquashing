@@ -27,6 +27,17 @@ def argmax(d):
 def spectral_gap(G):
 	return nx.normalized_laplacian_spectrum(G)[1]
 
+def lower_bound_cheeger(G, d):
+	return (nx.normalized_laplacian_spectrum(G)[1])/2
+
+def number_of_triangles(G):
+	triangles = 0
+	for (i, j) in G.edges:
+		i_nbhd = set(G.neighbors(i))
+		j_nbhd = set(G.neighbors(j))
+		triangles += len(i_nbhd.intersection(j_nbhd))
+	return triangles / 3
+
 def sample(weights, temperature=1, use_softmax=True):
 	# samples randomly from a list of weights
 	weights = torch.tensor(weights)
@@ -140,6 +151,16 @@ def average_curvature(G, curvatures=None):
 	for edge in curv:
 		total += curv[edge]
 	return total/len(curv)
+def randomized_average_curvature(G, num_samples=100):
+	# estimates average curvature of G based on a random sample
+	edges = list(G.edges)
+	num_edges = len(edges)
+	curvatures = []
+	for i in range(num_samples):
+		choice = np.random.randint(0, num_edges)
+		(u, v) = edges[choice]
+		curvatures.append(balanced_forman(u, v, G))
+	return np.average(curvatures)
 def sdrf(G, curvatures=None, max_iterations=1, temperature=5, C_plus=None):
 	# stochastic discrete ricci flow
 	num_nodes = len(G.nodes)
@@ -215,6 +236,51 @@ def rlef(G):
 			G.add_edge(i,v)
 			G.add_edge(j,u)
 		return G
+def greedy_rlef(G, triangle_data=None):
+
+	# samples greedily according to inverse triangle count
+	if triangle_data == None:
+		triangle_data = {}
+		for (u,v) in G.edges:
+			u_nbhd = set(G.neighbors(u))
+			v_nbhd = set(G.neighbors(v))
+			num_triangles = len(u_nbhd.intersection(v_nbhd))
+			triangle_data[(u,v)] = num_triangles
+			triangle_data[(v,u)] = num_triangles
+	(u, v) = argmin(triangle_data)
+	if not (u, v) in G.edges:
+		print("ERROR")
+	#print(u,v)
+	eligible_i = list(set(G.neighbors(u)).difference(set(G.neighbors(v))).difference({v}))
+	if not eligible_i:
+		return triangle_data
+	i = np.random.choice(eligible_i)
+	eligible_j = list(set(G.neighbors(v)).difference(set(G.neighbors(u))).difference({u}))
+	if not eligible_j:
+		return triangle_data
+	j = np.random.choice(eligible_j)
+	print(u, v, i, j)
+	G.remove_edge(j,v)
+	G.remove_edge(i,u)
+	G.add_edge(i,v)
+	G.add_edge(j,u)
+
+	triangle_data.pop((i,u))
+	triangle_data.pop((u,i))
+	triangle_data.pop((j,v))
+	triangle_data.pop((v,j))
+
+	u_nbhd = set(G.neighbors(u))
+	v_nbhd = set(G.neighbors(v))
+	i_nbhd = set(G.neighbors(i))
+	j_nbhd = set(G.neighbors(j))
+
+	triangle_data[(i,v)] = len(i_nbhd.intersection(v_nbhd))
+	triangle_data[(v,i)] = len(i_nbhd.intersection(v_nbhd))
+	triangle_data[(j,u)] = len(j_nbhd.intersection(u_nbhd))
+	triangle_data[(u,j)] = len(j_nbhd.intersection(u_nbhd))
+	return triangle_data
+
 def augment_degree(G):
 	i = argmin(dict(G.degree))
 	neighbors_of_i = G.neighbors(i)
