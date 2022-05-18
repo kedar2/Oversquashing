@@ -13,13 +13,22 @@ class GCN(torch.nn.Module):
     def __init__(self,
                  data,
                  hidden: List[int] = [64],
-                 dropout: float = 0.5):
+                 dropout: float = 0.5,
+                 last_layer_fully_adjacent=False,
+                 skip_connection=0):
         super(GCN, self).__init__()
-
-        num_features = [data.x.shape[1]] + hidden + [max(data.y).item() + 1]
+        self.last_layer_fully_adjacent = last_layer_fully_adjacent
+        num_labels = max(data.y).item() + 1
+        num_features = [data.x.shape[1]] + hidden + [num_labels]
+        num_nodes = data.x.shape[0]
+        num_layers = len(num_features) - 1
         layers = []
-        for in_features, out_features in zip(num_features[:-1], num_features[1:]):
-            layers.append(GCNConv(in_features, out_features))
+        for i, (in_features, out_features) in enumerate(zip(num_features[:-1], num_features[1:])):
+            if i == num_layers -1 and self.last_layer_fully_adjacent:
+                layers.append(torch.nn.Linear(hidden[-1], num_labels))
+                layers.append(torch.nn.Linear(num_nodes, num_nodes))
+            else:
+                layers.append(GCNConv(in_features, out_features))
         self.layers = ModuleList(layers)
 
         self.reg_params = list(layers[0].parameters())
@@ -27,6 +36,7 @@ class GCN(torch.nn.Module):
 
         self.dropout = Dropout(p=dropout)
         self.act_fn = ReLU()
+
 
     def reset_parameters(self):
         for layer in self.layers:
@@ -36,6 +46,11 @@ class GCN(torch.nn.Module):
         x, edge_index = data.x, data.edge_index
 
         for i, layer in enumerate(self.layers):
+            
+            if self.last_layer_fully_adjacent and i == len(self.layers) - 2:
+                    x = layer(x)
+                    x = self.layers[-1](x.T).T
+                    break
             x = layer(x, edge_index)
 
             if i == len(self.layers) - 1:
