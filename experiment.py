@@ -62,7 +62,7 @@ class Experiment():
         #                        use_activation=not args.no_activation,
         #                        use_residual=not args.no_residual, num_nodes=num_nodes
         #                        ).to(self.device)
-        self.model = GCN(data=self.data, hidden=self.hidden, dropout=self.dropout, skip_connection=self.skip_connection, last_layer_fully_adjacent = self.last_layer_fully_adjacent).to(self.device)
+        self.model = GCN(data=self.data, hidden=self.hidden, dropout=self.dropout, last_layer_fully_adjacent = self.last_layer_fully_adjacent).to(self.device)
         #print(f'Starting experiment')
         #self.print_args(args)
         #print(f'Training examples: {len(self.train_samples)}, validation examples: {len(self.validation_samples)}')
