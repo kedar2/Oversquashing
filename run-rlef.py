@@ -30,25 +30,26 @@ if __name__ == '__main__':
 
     task = Task.DEFAULT
     gnn_type = GNN_TYPE.GCN
-    names = ["actor", "squirrel", "chameleon"]
+    names = ["squirrel"]
     hyperparams = {
-    "cornell": AttrDict({"dropout": 0.2411, "num_layers": 1, "dim": 128, "learning_rate": 0.0172, "weight_decay": 0.0125, "max_iterations": 135, "temperature": 130, "C_plus": 0.25}),
-    "texas": AttrDict({"dropout": 0.5954, "num_layers": 1, "dim": 128, "learning_rate": 0.0278, "weight_decay": 0.0623, "max_iterations": 47, "temperature": 172, "C_plus": 2.25}),
-    "wisconsin": AttrDict({"dropout": 0.6033, "num_layers": 1, "dim": 128, "learning_rate": 0.0295, "weight_decay": 0.1920, "max_iterations": 27, "temperature": 32, "C_plus": 0.5}),
-    "chameleon": AttrDict({"dropout": 0.7265, "num_layers": 1, "dim": 128, "learning_rate": 0.0180, "weight_decay": 0.2101, "max_iterations": 1500, "temperature": 77, "C_plus": 3.35}),
-    "squirrel": AttrDict({"dropout": 0.7401, "num_layers": 2, "dim": 16, "learning_rate": 0.0189, "weight_decay": 0.2255, "max_iterations": 2000, "temperature": 178, "C_plus": 0.5}),
-    "actor": AttrDict({"dropout": 0.6866, "num_layers": 1, "dim": 128, "learning_rate": 0.0095, "weight_decay": 0.0727, "max_iterations": 1500, "temperature": 69, "C_plus": 1.22}),
-    "cora": AttrDict({"dropout": 0.3396, "num_layers": 1, "dim": 128, "learning_rate": 0.0244, "weight_decay": 0.1076, "max_iterations": 100, "temperature": 163, "C_plus": 0.95}),
-    "citeseer": AttrDict({"dropout": 0.4103, "num_layers": 1, "dim": 64, "learning_rate": 0.0199, "weight_decay": 0.4551, "max_iterations": 84, "temperature": 180, "C_plus": 0.22}),
-    "pubmed": AttrDict({"dropout": 0.3749, "num_layers": 3, "dim": 128, "learning_rate": 0.0112, "weight_decay": 0.0138, "max_iterations": 166, "temperature": 115, "C_plus": 14.43}),
+    "cornell": AttrDict({'dropout': 0.08056718510279537, 'num_layers': 1, 'dim': 128, 'learning_rate': 0.043259685998514125, 'weight_decay': 0.11441342982302352, 'max_iterations': 780}),
+    "texas": AttrDict({"skip_connection": 0.1, "dropout": 0.5954, "num_layers": 1, "dim": 128, "learning_rate": 0.0278, "weight_decay": 0.0623, "max_iterations": 47, "temperature": 172, "C_plus": 2.25}),
+    "wisconsin": AttrDict({"skip_connection": 0.1, "dropout": 0.6033, "num_layers": 1, "dim": 128, "learning_rate": 0.0295, "weight_decay": 0.1920, "max_iterations": 27, "temperature": 32, "C_plus": 0.5}),
+    "chameleon": AttrDict({'dropout': 0.43446212772219317, 'num_layers': 1, 'dim': 64, 'learning_rate': 0.033660439322985264, 'weight_decay': 0.16331051837548435, 'max_iterations': 1842}),
+    "squirrel": AttrDict({'dropout': 0.4983797463417786, 'num_layers': 1, 'dim': 128, 'learning_rate': 0.003585299305048884, 'weight_decay': 0.19801432057717588, 'max_iterations': 800}),
+    "actor": AttrDict({'dropout': 0.8675000061339353, 'num_layers': 1, 'dim': 16, 'learning_rate': 0.04676186778179084, 'weight_decay': 0.0071627046187316135, 'max_iterations': 452}),
+    "cora": AttrDict({'dropout': 0.3660401848946039, 'num_layers': 2, 'dim': 16, 'learning_rate': 0.031477568591226184, 'weight_decay': 0.20106306553056918, 'max_iterations': 69}),
+    "citeseer": AttrDict({'dropout': 0.5978429814505746, 'num_layers': 2, 'dim': 32, 'learning_rate': 0.03843724741519129, 'weight_decay': 0.01564545403728318, 'max_iterations': 1818}),
+    "pubmed": AttrDict({'dropout': 0.5254051009158754, 'num_layers': 2, 'dim': 128, 'learning_rate': 0.031847737302168076, 'weight_decay': 0.05360889354880405, 'max_iterations': 1710}),
     }
     stopping_criterion = STOP.VALIDATION
-    num_trials= 400
-    accuracies = []    
+    num_trials = 100
+    accuracies = []
     for name in names:
         accuracies = []
         print("TESTING: " + name)
         for trial in range(num_trials):
+            print("Trial number: ", trial)
             dataset = task.get_dataset()
             dataset.generate_data(name)
             G = to_networkx(dataset.graph, to_undirected=True)
@@ -57,10 +58,15 @@ if __name__ == '__main__':
                 rewiring.rlef(G)
             dataset.graph.edge_index = from_networkx(G).edge_index
             args = main.get_fake_args(task=task, num_layers=hyperparams[name].num_layers, loader_workers=7,
-                                      type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=True)
+                                      type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=False)
             train_acc, validation_acc, test_acc, epoch = Experiment(args).run()
-            print("Test accuracy: ", test_acc) 
             accuracies.append(test_acc)
             torch.cuda.empty_cache()
         print("average acc: ", np.average(accuracies))
-        print("plus/minus: ", 2 * np.std(accuracies)/(num_trials ** 0.5))
+        print("E(X^2): ", sum([x**2 for x in accuracies]))
+        print("Accuracy for ")
+
+        f = open("rlef-notes.txt", "a")
+        f.write("\n" + "Average accuracy for " + name + ": " + np.average(accuracies))
+        f.write("\n" + "E(X^2): " + str(sum([x**2 for x in accuracies])) + "\n")
+        f.close()
