@@ -33,6 +33,8 @@ class Experiment():
         self.dropout = args.dropout
         self.learning_rate = args.learning_rate
         self.hidden = [self.dim] * self.num_layers
+        self.skip_connection = args.skip_connection
+        self.last_layer_fully_adjacent = args.last_layer_fully_adjacent
 
 
         #seed = 11
@@ -46,7 +48,13 @@ class Experiment():
         out_dim = self.dataset.out_dim
         self.criterion = self.dataset.criterion
 
-        self.train_samples, self.validation_samples, self.test_samples = self.dataset.decide_training_set(self.train_fraction, self.validation_fraction)
+        if args.preloaded_samples is None:
+            self.train_samples, self.validation_samples, self.test_samples = self.dataset.decide_training_set(self.train_fraction, self.validation_fraction)
+        else:
+            self.train_samples, self.validation_samples, self.test_samples = args.preloaded_samples
+            self.train_samples = list(self.train_samples)
+            self.validation_samples = list(self.validation_samples)
+            self.test_samples = list(self.test_samples)
 
         #self.model = GraphModel(gnn_type=gnn_type, num_layers=num_layers, dim0=dim0, h_dim=self.dim, out_dim=out_dim,
         #                        last_layer_fully_adjacent=args.last_layer_fully_adjacent, unroll=args.unroll,
@@ -54,7 +62,7 @@ class Experiment():
         #                        use_activation=not args.no_activation,
         #                        use_residual=not args.no_residual, num_nodes=num_nodes
         #                        ).to(self.device)
-        self.model = GCN(data=self.data, hidden=self.hidden, dropout=self.dropout).to(self.device)
+        self.model = GCN(data=self.data, hidden=self.hidden, dropout=self.dropout, skip_connection=self.skip_connection, last_layer_fully_adjacent = self.last_layer_fully_adjacent).to(self.device)
         #print(f'Starting experiment')
         #self.print_args(args)
         #print(f'Training examples: {len(self.train_samples)}, validation examples: {len(self.validation_samples)}')

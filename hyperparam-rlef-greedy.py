@@ -48,7 +48,6 @@ if __name__ == '__main__':
         non_test_samples, test_samples = train_test_split(node_indices, test_size=0.2)
 
         for trial in range(num_trials):
-            print(trial)
             train_samples, validation_samples = train_test_split(non_test_samples, test_size=0.25)
             triangle_data = None
 
@@ -69,7 +68,7 @@ if __name__ == '__main__':
             dataset.graph.edge_index = from_networkx(G).edge_index
             
             args = main.get_fake_args(task=task, num_layers=hyperparams.num_layers, loader_workers=7,
-                                      type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=False)
+                                      type=gnn_type, stop=stopping_criterion, dataset=dataset, last_layer_fully_adjacent=False, preloaded_samples=(train_samples, validation_samples, test_samples))
             train_acc, validation_acc, test_acc, epoch = Experiment(args).run()
             
             if test_acc > best_acc:

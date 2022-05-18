@@ -54,7 +54,9 @@ def get_fake_args(
         dataset='dataset',
         dropout=0,
         learning_rate=0.001,
-        weight_decay=0
+        weight_decay=0,
+        skip_connection=0,
+        preloaded_samples=None
 ):
     return AttrDict({
         'task': task,
@@ -78,5 +80,7 @@ def get_fake_args(
         'dataset': dataset,
         'dropout': dropout,
         'learning_rate': learning_rate,
-        'weight_decay': weight_decay
+        'weight_decay': weight_decay,
+        'skip_connection': skip_connection,
+        'preloaded_samples': preloaded_samples
     })
