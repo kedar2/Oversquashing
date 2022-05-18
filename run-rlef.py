@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     task = Task.DEFAULT
     gnn_type = GNN_TYPE.GCN
-    names = ["squirrel"]
+    names = ["cornell", "chameleon", "squirrel", "actor", "cora", "citeseer", "pubmed"]
     hyperparams = {
     "cornell": AttrDict({'dropout': 0.08056718510279537, 'num_layers': 1, 'dim': 128, 'learning_rate': 0.043259685998514125, 'weight_decay': 0.11441342982302352, 'max_iterations': 780}),
     "texas": AttrDict({"skip_connection": 0.1, "dropout": 0.5954, "num_layers": 1, "dim": 128, "learning_rate": 0.0278, "weight_decay": 0.0623, "max_iterations": 47, "temperature": 172, "C_plus": 2.25}),
