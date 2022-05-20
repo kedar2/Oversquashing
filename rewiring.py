@@ -284,6 +284,7 @@ def greedy_rlef(G, triangle_data=None):
 
 def greedy_rlef_2(G, triangle_data=None, temperature=5):
 	# samples greedily according to inverse triangle count
+	
 	if triangle_data == None:
 		triangle_data = {}
 		for (u,v) in G.edges:
@@ -295,10 +296,10 @@ def greedy_rlef_2(G, triangle_data=None, temperature=5):
 	
 	triangle_data_list = [[e, triangle_data[e]] for e in triangle_data]
 	edge_list = [x[0] for x in triangle_data_list]
+	
 	weights = [1/(2 + x[1]) for x in triangle_data_list]
 	selected_index = sample(weights, temperature=temperature)
 	(u, v) = edge_list[selected_index]
-
 
 	u_nbhd = set(G.neighbors(u))
 	v_nbhd = set(G.neighbors(v))
@@ -316,6 +317,8 @@ def greedy_rlef_2(G, triangle_data=None, temperature=5):
 		i_scores[node] = triangles_added - triangles_removed
 	i = argmin(i_scores)
 
+
+
 	eligible_j = list(v_nbhd.difference(u_nbhd).difference({u}))
 	if not eligible_j:
 		return triangle_data
@@ -329,7 +332,6 @@ def greedy_rlef_2(G, triangle_data=None, temperature=5):
 		triangles_removed = len(v_nbhd.intersection(node_nbhd))
 		j_scores[node] = triangles_added - triangles_removed
 	j = argmin(j_scores)
-
 	#print(u, v, i, j)
 	G.remove_edge(j,v)
 	G.remove_edge(i,u)
@@ -350,6 +352,53 @@ def greedy_rlef_2(G, triangle_data=None, temperature=5):
 	triangle_data[(v,i)] = len(i_nbhd.intersection(v_nbhd))
 	triangle_data[(j,u)] = len(j_nbhd.intersection(u_nbhd))
 	triangle_data[(u,j)] = len(j_nbhd.intersection(u_nbhd))
+
+	return triangle_data
+
+def greedy_rlef_3(G):
+	edge_list = list(G.edges)
+	(u, v) = edge_list[np.random.randint(0, len(edge_list))]
+
+	u_nbhd = set(G.neighbors(u))
+	v_nbhd = set(G.neighbors(v))
+	eligible_i = list(u_nbhd.difference(v_nbhd).difference({v}))
+	if not eligible_i:
+		return G
+	
+	# choose the value of i which removes as many triangles as possible
+
+	i_scores = {}
+	for node in eligible_i:
+		node_nbhd = set(G.neighbors(node))
+		triangles_added = len(v_nbhd.intersection(node_nbhd))
+		triangles_removed = len(u_nbhd.intersection(node_nbhd))
+		i_scores[node] = triangles_added - triangles_removed
+	i = argmin(i_scores)
+
+	eligible_j = list(v_nbhd.difference(u_nbhd).difference({u}))
+	if not eligible_j:
+		return G
+
+	# choose the value of j which removes as many triangles as possible
+
+	j_scores = {}
+	for node in eligible_j:
+		node_nbhd = set(G.neighbors(node))
+		triangles_added = len(u_nbhd.intersection(node_nbhd))
+		triangles_removed = len(v_nbhd.intersection(node_nbhd))
+		j_scores[node] = triangles_added - triangles_removed
+	j = argmin(j_scores)
+
+	#print(u, v, i, j)
+	G.remove_edge(j,v)
+	G.remove_edge(i,u)
+	G.add_edge(i,v)
+	G.add_edge(j,u)
+
+	u_nbhd = set(G.neighbors(u))
+	v_nbhd = set(G.neighbors(v))
+	i_nbhd = set(G.neighbors(i))
+	j_nbhd = set(G.neighbors(j))
 
 def augment_degree(G):
 	i = argmin(dict(G.degree))
