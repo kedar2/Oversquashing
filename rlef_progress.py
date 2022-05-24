@@ -51,14 +51,15 @@ if __name__ == '__main__':
         accuracies = np.zeros(num_iterations)
         spectral_gaps = np.zeros(num_iterations)
         num_triangles = np.zeros(num_iterations)
-        dataset = task.get_dataset()
-        dataset.generate_data(name)
-        curvatures = None
-        G = to_networkx(dataset.graph, to_undirected=True)
         for trial in range(num_trials):
-            spectral_gaps[trial] += rewiring.spectral_gap(G)
-            num_triangles[trial] += rewiring.number_of_triangles(G)
-            rewiring.rlef(G)
+            dataset = task.get_dataset()
+            dataset.generate_data(name)
+            curvatures = None
+            G = to_networkx(dataset.graph, to_undirected=True)
+            for iteration in range(num_iterations):
+                spectral_gaps[iteration] += rewiring.spectral_gap(G)
+                num_triangles[iteration] += rewiring.number_of_triangles(G)
+                rewiring.rlef(G)
         accuracies /= num_trials
         spectral_gaps /= num_trials
         num_triangles /= num_trials
