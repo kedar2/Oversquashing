@@ -3,7 +3,7 @@
 Code for the synthetic experiments in our paper on oversquashing in GNNs. To test the spectral expansion of a graph under RLEF, GRLEF, or SDRF, run the file synthetic.py. By default, it will produce a figure for a path of 3 cliques, each with 10 vertices.
 
 ## Requirements
-The repository uses these packages:
+The repository uses the following packages:
 
 ```
 numpy
