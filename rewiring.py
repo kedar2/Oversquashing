@@ -1,13 +1,11 @@
-import torch
-import torch_geometric
 import numpy as np
 from numpy.random import random
 import networkx as nx
 from math import inf
-from torch_geometric.data import Data
 
-degree = torch_geometric.utils.degree
-softmax = torch.nn.Softmax(dim=0)
+def softmax(v):
+	positive_v = np.exp(v)
+	return positive_v / sum(positive_v)
 
 def argmin(d):
 	smallest = inf
@@ -40,7 +38,6 @@ def number_of_triangles(G):
 
 def sample(weights, temperature=1, use_softmax=True):
 	# samples randomly from a list of weights
-	weights = torch.tensor(weights)
 	seed = random()
 	if use_softmax:
 		probabilities = softmax(temperature * weights)
@@ -111,29 +108,6 @@ def balanced_forman(i, j, G):
 	ric = 2/di + 2/dj - 2 + triangle_term + square_term
 	return ric
 
-class CurvatureGraph:
-	# data structure that keeps track of curvature changes in a graph
-	def __init__(self, G):
-		self.G = G
-		self.num_nodes = len(G.nodes)
-		self.num_edges = len(G.edges)
-		self.curvatures = {}
-		self.total_curvature = 0
-		for edge in G.edges:
-			(u, v) = edge
-			ric_uv = balanced_forman(u, v, G)
-			self.curvatures[(u,v)] = ric_uv
-			self.total_curvature += ric_uv
-	def mean_curvature(self):
-		return self.total_curvature / self.num_edges
-	def ric(edge):
-		return self.curvatures[edge]
-	def update_curvature(self, edge_set):
-		for (u, v) in edge_set:
-			old_curvature = self.curvatures[(u,v)]
-			new_curvature = balanced_forman(u, v, G)
-			self.total_curvature += (new_curvature - old_curvature)
-
 def compute_curvature(G):
 	# computes Ric(i, j) for all edges (i, j)
 	curvatures = {}
@@ -142,6 +116,7 @@ def compute_curvature(G):
 		(a, b) = (min(u,v), max(u,v))
 		curvatures[(a,b)] = balanced_forman(a, b, G)
 	return curvatures
+
 def average_curvature(G, curvatures=None):
 	if curvatures == None:
 		curv = compute_curvature(G)
@@ -151,6 +126,7 @@ def average_curvature(G, curvatures=None):
 	for edge in curv:
 		total += curv[edge]
 	return total/len(curv)
+
 def randomized_average_curvature(G, num_samples=100):
 	# estimates average curvature of G based on a random sample
 	edges = list(G.edges)
@@ -161,6 +137,7 @@ def randomized_average_curvature(G, num_samples=100):
 		(u, v) = edges[choice]
 		curvatures.append(balanced_forman(u, v, G))
 	return np.average(curvatures)
+
 def sdrf(G, curvatures=None, max_iterations=1, temperature=5, C_plus=None):
 	# stochastic discrete ricci flow
 	num_nodes = len(G.nodes)
@@ -168,7 +145,7 @@ def sdrf(G, curvatures=None, max_iterations=1, temperature=5, C_plus=None):
 	if curvatures == None:
 		curvatures = compute_curvature(G)
 	for iteration in range(max_iterations):
-		print(iteration)
+		#print(iteration)
 		(u, v) = argmin(curvatures)
 		#print(u, v)
 		#print(u, v, curvatures[(u,v)])
@@ -185,7 +162,7 @@ def sdrf(G, curvatures=None, max_iterations=1, temperature=5, C_plus=None):
 		if improvements != {}:
 			improvements_list = [[k, l, improvements[(k,l)]] for (k, l) in improvements]
 			improvement_values = [x[2] for x in improvements_list]
-			chosen_index = sample(improvement_values,temperature=temperature)
+			chosen_index = sample(np.array(improvement_values),temperature=temperature)
 			i = improvements_list[chosen_index][0]
 			j = improvements_list[chosen_index][1]
 			G.add_edge(i, j)
@@ -237,52 +214,8 @@ def rlef(G):
 			G.add_edge(i,v)
 			G.add_edge(j,u)
 		return G
-def greedy_rlef(G, triangle_data=None):
 
-	# samples greedily according to inverse triangle count
-	if triangle_data == None:
-		triangle_data = {}
-		for (u,v) in G.edges:
-			u_nbhd = set(G.neighbors(u))
-			v_nbhd = set(G.neighbors(v))
-			num_triangles = len(u_nbhd.intersection(v_nbhd))
-			triangle_data[(u,v)] = num_triangles
-			triangle_data[(v,u)] = num_triangles
-
-	(u, v) = argmin(triangle_data)
-	if not (u, v) in G.edges:
-		print("ERROR")
-	eligible_i = list(set(G.neighbors(u)).difference(set(G.neighbors(v))).difference({v}))
-	if not eligible_i:
-		return triangle_data
-	i = np.random.choice(eligible_i)
-	eligible_j = list(set(G.neighbors(v)).difference(set(G.neighbors(u))).difference({u}))
-	if not eligible_j:
-		return triangle_data
-	j = np.random.choice(eligible_j)
-	print(u, v)
-	G.remove_edge(j,v)
-	G.remove_edge(i,u)
-	G.add_edge(i,v)
-	G.add_edge(j,u)
-
-	triangle_data.pop((i,u))
-	triangle_data.pop((u,i))
-	triangle_data.pop((j,v))
-	triangle_data.pop((v,j))
-
-	u_nbhd = set(G.neighbors(u))
-	v_nbhd = set(G.neighbors(v))
-	i_nbhd = set(G.neighbors(i))
-	j_nbhd = set(G.neighbors(j))
-
-	triangle_data[(i,v)] = len(i_nbhd.intersection(v_nbhd))
-	triangle_data[(v,i)] = len(i_nbhd.intersection(v_nbhd))
-	triangle_data[(j,u)] = len(j_nbhd.intersection(u_nbhd))
-	triangle_data[(u,j)] = len(j_nbhd.intersection(u_nbhd))
-	return triangle_data
-
-def greedy_rlef_2(G, triangle_data=None, temperature=5):
+def grlef(G, triangle_data=None, temperature=5):
 	# samples greedily according to inverse triangle count
 	
 	if triangle_data == None:
@@ -297,7 +230,7 @@ def greedy_rlef_2(G, triangle_data=None, temperature=5):
 	triangle_data_list = [[e, triangle_data[e]] for e in triangle_data]
 	edge_list = [x[0] for x in triangle_data_list]
 	
-	weights = [1/(2 + x[1]) for x in triangle_data_list]
+	weights = np.array([1/(2 + x[1]) for x in triangle_data_list])
 	selected_index = sample(weights, temperature=temperature)
 	(u, v) = edge_list[selected_index]
 
@@ -354,129 +287,3 @@ def greedy_rlef_2(G, triangle_data=None, temperature=5):
 	triangle_data[(u,j)] = len(j_nbhd.intersection(u_nbhd))
 
 	return triangle_data
-
-def greedy_rlef_3(G):
-	edge_list = list(G.edges)
-	(u, v) = edge_list[np.random.randint(0, len(edge_list))]
-
-	u_nbhd = set(G.neighbors(u))
-	v_nbhd = set(G.neighbors(v))
-	eligible_i = list(u_nbhd.difference(v_nbhd).difference({v}))
-	if not eligible_i:
-		return G
-	
-	# choose the value of i which removes as many triangles as possible
-
-	i_scores = {}
-	for node in eligible_i:
-		node_nbhd = set(G.neighbors(node))
-		triangles_added = len(v_nbhd.intersection(node_nbhd))
-		triangles_removed = len(u_nbhd.intersection(node_nbhd))
-		i_scores[node] = triangles_added - triangles_removed
-	i = argmin(i_scores)
-
-	eligible_j = list(v_nbhd.difference(u_nbhd).difference({u}))
-	if not eligible_j:
-		return G
-
-	# choose the value of j which removes as many triangles as possible
-
-	j_scores = {}
-	for node in eligible_j:
-		node_nbhd = set(G.neighbors(node))
-		triangles_added = len(u_nbhd.intersection(node_nbhd))
-		triangles_removed = len(v_nbhd.intersection(node_nbhd))
-		j_scores[node] = triangles_added - triangles_removed
-	j = argmin(j_scores)
-
-	#print(u, v, i, j)
-	G.remove_edge(j,v)
-	G.remove_edge(i,u)
-	G.add_edge(i,v)
-	G.add_edge(j,u)
-
-	u_nbhd = set(G.neighbors(u))
-	v_nbhd = set(G.neighbors(v))
-	i_nbhd = set(G.neighbors(i))
-	j_nbhd = set(G.neighbors(j))
-
-def augment_degree(G):
-	i = argmin(dict(G.degree))
-	neighbors_of_i = G.neighbors(i)
-	second_neighbors_of_i = second_neighborhood(i, G)
-	second_neighbors_of_i = second_neighbors_of_i.difference(set(neighbors_of_i)).difference({i})
-	if second_neighbors_of_i == set():
-		return None
-	lowest_degree = inf
-	for j in second_neighbors_of_i:
-		if G.degree(j) < lowest_degree:
-			best_second_neighbor = j
-			lowest_degree = G.degree(j)
-	G.add_edge(i, j)
-	return G
-
-# DIGL pre-processing, from https://github.com/gasteigerjo/gdc.git
-
-def get_adj_matrix(dataset) -> np.ndarray:
-    num_nodes = dataset.x.shape[0]
-    adj_matrix = np.zeros(shape=(num_nodes, num_nodes))
-    for i, j in zip(dataset.edge_index[0], dataset.edge_index[1]):
-        adj_matrix[i, j] = 1.
-    return adj_matrix
-
-def get_ppr_matrix(
-        adj_matrix: np.ndarray,
-        alpha: float = 0.1) -> np.ndarray:
-    num_nodes = adj_matrix.shape[0]
-    A_tilde = adj_matrix + np.eye(num_nodes)
-    D_tilde = np.diag(1/np.sqrt(A_tilde.sum(axis=1)))
-    H = D_tilde @ A_tilde @ D_tilde
-    return alpha * np.linalg.inv(np.eye(num_nodes) - (1 - alpha) * H)
-
-def get_top_k_matrix(A: np.ndarray, k: int = 128) -> np.ndarray:
-    num_nodes = A.shape[0]
-    row_idx = np.arange(num_nodes)
-    A[A.argsort(axis=0)[:num_nodes - k], row_idx] = 0.
-    norm = A.sum(axis=0)
-    norm[norm <= 0] = 1 # avoid dividing by zero
-    return A/norm
-
-def get_clipped_matrix(A: np.ndarray, eps: float = 0.01) -> np.ndarray:
-    num_nodes = A.shape[0]
-    A[A < eps] = 0.
-    norm = A.sum(axis=0)
-    norm[norm <= 0] = 1 # avoid dividing by zero
-    return A/norm
-
-def digl(base, alpha, k=None, eps=None):
-	# generate adjacency matrix from sparse representation
-    adj_matrix = get_adj_matrix(base)
-    # obtain exact PPR matrix
-    ppr_matrix = get_ppr_matrix(adj_matrix, alpha=alpha)
-
-    if k != None:
-            print(f'Selecting top {k} edges per node.')
-            ppr_matrix = get_top_k_matrix(ppr_matrix, k=k)
-    elif eps != None:
-            print(f'Selecting edges with weight greater than {eps}.')
-            ppr_matrix = get_clipped_matrix(ppr_matrix, eps=eps)
-    else:
-        raise ValueError
-
-        # create PyG Data object
-    edges_i = []
-    edges_j = []
-    edge_attr = []
-    for i, row in enumerate(ppr_matrix):
-        for j in np.where(row > 0)[0]:
-            edges_i.append(i)
-            edges_j.append(j)
-            edge_attr.append(ppr_matrix[i, j])
-    edge_index = [edges_i, edges_j]
-
-    data = Data(
-        x=base.x,
-        edge_index=torch.LongTensor(edge_index),
-        y=base.y
-    )        
-    return data
