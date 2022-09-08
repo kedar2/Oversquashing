@@ -92,5 +92,3 @@ dependencies:
     - torch-scatter==2.0.9
     - torch-sparse==0.6.15
     - tqdm==4.64.1
-prefix: /home/kedar/anaconda3/envs/oversquashing
-
