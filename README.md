@@ -1,6 +1,6 @@
 # Oversquashing in GNNs through the lens of information contraction and graph expansion
 
-Code for the synthetic experiments in our paper on oversquashing in GNNs to appear in the [58th Annual Allerton Conference on Communication, Control, and Computing] (https://allerton.csl.illinois.edu/) (preprint: [arXiv:2208.03471](https://arxiv.org/abs/2208.03471)). 
+Code for the synthetic experiments in our paper on oversquashing in GNNs to appear in the [58th Annual Allerton Conference on Communication, Control, and Computing](https://allerton.csl.illinois.edu/) (preprint: [arXiv:2208.03471](https://arxiv.org/abs/2208.03471)). 
 
 ## Requirements
 To configure and activate the conda environment for this repository, run
