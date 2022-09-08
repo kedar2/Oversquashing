@@ -9,7 +9,7 @@ conda env create -f environment.yml
 conda activate oversquashing
 ```
 ## Spectral expansion plots
-To test the spectral expansion of a graph under RLEF, G-RLEF, or SDRF, run the file plots.py. By default, it will produce a figure for a path of 3 cliques, each with 10 vertices.
+To test the spectral expansion of a graph under RLEF, G-RLEF, or SDRF, run the file plots.py. By default, it will produce a figure for a path of 3 cliques, each with 10 nodes.
 ## NeighborsMatch experiment
 To run the NeighborsMatch experiment, run the file `run_neighborsmatch.py`. The following commands will run the experiment for the G-RLEF and SDRF rewirings.
 ```
