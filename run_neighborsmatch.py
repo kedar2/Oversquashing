@@ -49,19 +49,30 @@ def run(args=AttrDict({})):
     args += get_args_from_input()
 
     accuracies = []
-    print(f"TESTING: NEIGHBORSMATCH ({args.rewiring}), ITERATION COUNT {args.num_iterations}")
+    print(f"TESTING: NEIGHBORSMATCH, REWIRING: {args.rewiring}, ITERATION COUNT {args.num_iterations}")
 
     for trial in range(1, args.num_trials + 1):
         G = nmatch.path_of_cliques(3, 10)
         if args.rewiring == "GRLEF":
             for i in range(args.num_iterations):
                 rewiring.grlef(G)
+        elif args.rewiring == "RLEF":
+            for i in range(args.num_iterations):
+                rewiring.rlef(G)
+        elif args.rewiring == "SDRF":
+            curvatures = None
+            for i in range(args.num_iterations):
+                G, curvatures = rewiring.sdrf(G, curvatures=curvatures, C_plus=-np.inf)
+        elif args.rewiring == "None":
+            pass
+        else:
+            raise ValueError(f"Invalid rewiring method: {args.rewiring}")
         dataset = nmatch.create_neighborsmatch_dataset(G, 29, vertices_to_label, args.num_graphs)
         print(f"TRIAL {trial}")
         train_acc = Experiment(args=args, dataset=dataset).run()
         accuracies.append(train_acc.item())
 
-    log_to_file(f"RESULTS FOR NEIGHBORSMATCH ({args.rewiring}), ITERATION COUNT {args.num_iterations}:\n")
+    log_to_file(f"RESULTS FOR NEIGHBORSMATCH, REWIRING: {args.rewiring}, ITERATION COUNT {args.num_iterations}:\n")
     log_to_file(f"average acc: {100 * np.mean(accuracies)}\n")
     log_to_file(f"plus/minus:  {200 * np.std(accuracies)/(args.num_trials ** 0.5)}\n\n")
 

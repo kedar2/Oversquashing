@@ -13,7 +13,7 @@ To test the spectral expansion of a graph under RLEF, G-RLEF, or SDRF, run the f
 ## NeighborsMatch experiment
 To run the NeighborsMatch experiment, run the file `run_neighborsmatch.py`. The following commands will run the experiment for the G-RLEF and SDRF rewirings.
 ```
-python run_neighborsmatch.py --rewiring grlef
-python run_neighborsmatch.py --rewiring sdrf
+python run_neighborsmatch.py --rewiring GRLEF
+python run_neighborsmatch.py --rewiring SDRF
 ```
 The full list of settings can be found in the file `hyperparams.py`.

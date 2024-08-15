@@ -19,9 +19,9 @@ def get_args_from_input():
 	parser.add_argument('--hidden_layers', metavar='', type=ast.literal_eval, help='list containing dimensions of all hidden layers')
 	parser.add_argument('--num_layers', metavar='', type=int, help='number of hidden layers')
 	parser.add_argument('--batch_size', metavar='', type=int, help='number of samples in each training batch')
-	parser.add_argument('--num_trials', metavar='', type=int, help='number of times the network is trained'),
-	parser.add_argument('--rewiring', metavar='', type=str, help='type of rewiring to be performed'),
-	parser.add_argument('--num_iterations', metavar='', type=int, help='number of iterations of rewiring'),
+	parser.add_argument('--num_trials', metavar='', type=int, help='number of times the network is trained')
+	parser.add_argument('--rewiring', metavar='', type=str, help='type of rewiring to be performed (either GRLEF, RLEF, SDRF, or None)')
+	parser.add_argument('--num_iterations', metavar='', type=int, help='number of iterations of rewiring')
 	parser.add_argument('--num_graphs', metavar='', type=int, help='number of graphs in dataset for neighborsmatch task')
 	arg_values = parser.parse_args()
 	return AttrDict(vars(arg_values))
